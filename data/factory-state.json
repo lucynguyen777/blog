@@ -3,5 +3,6 @@
   "published_by_factory": 100,
   "rejected": 13,
   "last_run": "2026-10-06T12:50:03.195382+00:00",
-  "status": "ready"
+  "status": "ready",
+  "notify_milestone": 1000
 }

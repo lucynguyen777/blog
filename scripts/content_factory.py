@@ -763,6 +763,8 @@ def run(limit=None,dry_run=False):
     STATE_PATH.write_text(json.dumps(state,indent=2)+'\n')
     reindex()
     print(f'PUBLISHED: {len(accepted)} articles; REJECTED: {rejected}; NEXT_SEQ: {seq}')
+    if state['published_by_factory'] >= state.get('notify_milestone', 1000):
+        print(f'MILESTONE_REACHED: {state["published_by_factory"]} articles published!')
     return 0
 
 # ── Report ────────────────────────────────────────────────────────────────────
