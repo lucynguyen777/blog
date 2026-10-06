@@ -5,6 +5,10 @@
       "url": "/"
     },
     {
+      "label": "Cẩm nang",
+      "url": "/cam-nang/"
+    },
+    {
       "label": "Giới thiệu",
       "url": "/gioi-thieu/"
     }

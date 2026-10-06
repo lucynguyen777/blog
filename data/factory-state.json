@@ -1,8 +1,8 @@
 {
-  "next_sequence": 222,
-  "published_by_factory": 200,
-  "rejected": 21,
-  "last_run": "2026-10-06T13:01:54.554901+00:00",
+  "next_sequence": 336,
+  "published_by_factory": 300,
+  "rejected": 35,
+  "last_run": "2026-10-06T14:28:59.069676+00:00",
   "status": "ready",
   "notify_milestone": 1000
 }

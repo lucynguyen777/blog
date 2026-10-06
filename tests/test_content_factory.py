@@ -12,7 +12,8 @@ for i in range(1,50001):
  assert s['intent'] not in intents, ('duplicate intent',i,s['intent'])
  urls.add(s['url']);intents.add(s['intent'])
 existing=f.load_existing();accepted=[]
-for i in range(1,241):
+next_seq=json.loads((ROOT/'data/factory-state.json').read_text()).get('next_sequence',1)
+for i in range(next_seq,next_seq+240):
  a=f.make_article(f.spec_for(i));qa=f.score(a,existing+accepted)
  if qa['pass']:accepted.append(a)
  if len(accepted)==12:break

@@ -53,7 +53,7 @@ FAQ=json.loads((ROOT/'content/faq.json').read_text())
 for item in CUSTOM:
  item.update(hub='thue-xe',keywords=item['title'],parent='/',kind='page',art='NH',tone='white')
 P.extend(CUSTOM)
-TOP_LINKS=[('Trang chủ','/'),('Giới thiệu','/gioi-thieu/')]
+TOP_LINKS=[('Trang chủ','/'),('Cẩm nang','/cam-nang/'),('Giới thiệu','/gioi-thieu/')]
 BOTTOM_LINKS=[('FAQ','/faq/'),('Liên hệ','/lien-he/'),('Điều khoản dịch vụ','/dieu-khoan-dich-vu/'),('Chính sách bảo mật','/chinh-sach-bao-mat/')]
 def utility_links(items): return ''.join('<a href="'+u+'">'+E(t)+'</a>' for t,u in items)
 # One source of truth for all navigation; submenu links always point to real hub sections or existing pages.
@@ -85,7 +85,7 @@ def local_map():
 def footer():
  return f'''<footer class="footer"><div class="wrap"><div class="footer-top"><div class="footer-contact"><a class="brand" href="/"><span class="mark">n.</span><span>{E(S['name'])}<small>JOURNAL · HÀ NỘI</small></span></a>{CONTACT}</div><div class="footer-navigation"><nav class="footer-utility" aria-label="Footer trang chính">{utility_links(TOP_LINKS)}</nav><nav class="footer-nav" aria-label="Footer chuyên mục">{''.join('<div><h3><a href="'+h['url']+'" style="color:var(--ink);font-weight:650">'+E(h['label'])+'</a></h3>'+''.join('<a href="'+c['url']+'">'+E(c['label'])+'</a>' for c in h['children'])+'</div>' for h in NAV)}</nav><nav class="footer-support" aria-label="Footer hỗ trợ và chính sách">{utility_links(BOTTOM_LINKS)}</nav></div></div><div class="footer-bottom"><p>© 2026 Thuê xe máy Nguyễn Hà</p></div></div></footer>'''
 def widgets():return f'''<button class="float chat-toggle" id="chat-toggle" aria-label="Mở trợ lý Nguyễn Hà" aria-expanded="false" aria-controls="chat-panel">{icon('chat')}</button><button class="float call-toggle" id="call-toggle" aria-label="Mở liên hệ nhanh" aria-expanded="false" aria-controls="quick-links">{icon('phone')}</button><nav id="quick-links" class="quick-links" aria-label="Liên hệ nhanh" hidden><a href="tel:+84334699969"><span>{icon('phone')}</span>Gọi 0334 699 969</a><a href="https://zalo.me/0334699969" target="_blank" rel="noopener noreferrer"><span>Z</span>Nhắn Zalo</a><a href="https://wa.me/84334699969" target="_blank" rel="noopener noreferrer"><span>W</span>Nhắn WhatsApp</a></nav><section class="chat-panel" id="chat-panel" aria-label="Trợ lý Nguyễn Hà" hidden><div class="chat-head"><div><strong>Trợ lý Nguyễn Hà</strong><small>Tra cứu nội dung blog</small></div><div class="chat-controls"><button class="icon-btn" id="chat-refresh" aria-label="Đọc lại dữ liệu blog">{icon('refresh')}</button><button class="icon-btn" id="chat-close" aria-label="Đóng trợ lý">{icon('close')}</button></div></div><div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions"></div><form id="chat-form" class="chat-form"><input id="chat-input" name="question" aria-label="Câu hỏi cho trợ lý" placeholder="Bạn muốn tìm hiểu điều gì?" maxlength="500" autocomplete="off" required><button class="send-btn" aria-label="Gửi câu hỏi">{icon('send')}</button></form><p class="chat-disclaimer">Trả lời từ blog. Vui lòng liên hệ để xác nhận xe còn sẵn.</p></section>'''
-def card(p):return f'''<article class="card"><a href="{p['url']}"><div class="card-art {p['tone']}"><span class="big-number">{E(p['art'])}</span><span class="art-label">{E(next(h['label'] for h in NAV if h['slug']==p['hub']))}</span></div><div class="card-content"><span class="meta">CẨM NANG · NGUYỄN HÀ</span><h3>{E(p['title'])}</h3><p>{E(p['excerpt'])}</p></div></a></article>'''
+def card(p):return f'''<article class="card"><a href="{p['url']}"><div class="card-art {p['tone']}"><span class="card-art-title">{E(p['title'])}</span><span class="art-label">{E(next(h['label'] for h in NAV if h['slug']==p['hub']))}</span></div><div class="card-content"><span class="meta">CẨM NANG · NGUYỄN HÀ</span><h3>{E(p['title'])}</h3><p>{E(p['excerpt'])}</p></div></a></article>'''
 def shell(title,desc,url,body,extra=None,noindex=False):
  schema={'@context':'https://schema.org','@type':'Blog','name':S['name']+' Journal','url':S['url'],'inLanguage':'vi-VN'}
  schemas=[schema]
@@ -110,7 +110,17 @@ for p in P:
  if p['kind']=='page':
   if p['url']=='/faq/':
    sections=''.join(f'<details class="faq-item" id="muc-{i+1}"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for i,(q,a) in enumerate(FAQ))
-  page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
+   page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
+  elif p['url']=='/cam-nang/':
+   hub_blocks=[]
+   for h in NAV:
+    h_articles=[q for q in P if q['hub']==h['slug'] and q['kind'] not in ['hub','page']]
+    if h_articles:
+     hub_blocks.append(f'<div class="cam-nang-hub" style="margin-bottom:48px"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">{E(h["label"])}</p><h2 style="font-size:26px"><a href="{h["url"]}">{E(h["label"])}</a></h2><p>{E(h["description"])}</p></div><a class="text-link" href="{h["url"]}">Xem tất cả ({len(h_articles)})</a></div><div class="grid">'+''.join(card(q) for q in h_articles)+'</div></div>')
+   sections_cam_nang=f'<div class="cam-nang-intro" style="margin-bottom:36px"><p>{E(p["excerpt"])}</p></div>'+''.join(hub_blocks)
+   page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section" style="padding-top:10px">{sections_cam_nang}</section>'
+  else:
+   page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
  elif p['kind']=='hub':
   items=[q for q in P if q['hub']==p['hub'] and q['kind'] not in ['hub','page']]
   if items:sections='<div class="grid">'+''.join(card(q) for q in items)+'</div>'
