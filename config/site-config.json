@@ -1,0 +1,44 @@
+{
+  "site": {
+    "name": "Thuê xe máy Nguyễn Hà",
+    "domain": "thuha.rentbikehanoi.com",
+    "url": "https://thuha.rentbikehanoi.com",
+    "slogan": "Mỗi chuyến đi. Một góc Hà Nội.",
+    "brand_mark": "n.",
+    "brand_sub": "JOURNAL · HÀ NỘI",
+    "og_image": "/assets/hanoi.webp",
+    "theme_color": "#ffa266"
+  },
+  "business": {
+    "brand": "Thuê xe máy Nguyễn Hà",
+    "address": "Ngõ 5 Nguyễn Văn Cừ, Bồ Đề, Long Biên, Hà Nội (gần Bến xe Gia Lâm)",
+    "street": "Ngõ 5 Nguyễn Văn Cừ, Bồ Đề",
+    "locality": "Long Biên, Hà Nội",
+    "country": "VN",
+    "phone": "0334 699 969",
+    "international_phone": "+84 334 699 969",
+    "email": "nguyenthuha203@gmail.com",
+    "hours": "09:00–21:00 hằng ngày",
+    "opening_time": "09:00",
+    "closing_time": "21:00",
+    "zalo": "https://zalo.me/0334699969",
+    "whatsapp": "https://wa.me/84334699969"
+  },
+  "features": {
+    "enable_chatbot": true,
+    "enable_quick_call": true,
+    "enable_theme_toggle": true,
+    "enable_related_posts": true,
+    "enable_conditional_cta": true,
+    "enable_breadcrumbs": true,
+    "enable_schema_auto_inject": true
+  },
+  "qa": {
+    "max_title_length": 100,
+    "min_title_length": 10,
+    "require_single_h1": true,
+    "check_broken_internal_links": true,
+    "check_missing_alt": true
+  }
+}
+

@@ -1,0 +1,25 @@
+<a class="skip" href="#main">Đến nội dung</a>
+<header class="header">
+  <div class="wrap header-inner">
+    <a class="brand" href="/">
+      <span class="mark">{brand_mark}</span>
+      <span>{site_name}<small>{brand_sub}</small></span>
+    </a>
+    <div class="header-tools">
+      {theme_toggle_html}
+      <button id="menu-toggle" class="icon-btn" aria-label="Mở tất cả chuyên mục" aria-expanded="false" aria-controls="site-menu">{icon_menu}</button>
+    </div>
+  </div>
+</header>
+<div id="menu-backdrop" class="backdrop" hidden></div>
+<section class="menu-panel" id="site-menu" aria-label="Tất cả chuyên mục" hidden>
+  <div class="menu-head">
+    <nav class="menu-utility" aria-label="Trang chính">{utility_links}</nav>
+    <button id="menu-close" class="icon-btn" aria-label="Đóng menu">{icon_close}</button>
+  </div>
+  <nav class="menu-columns" aria-label="Menu chuyên mục">
+    {menu_columns_html}
+  </nav>
+  <nav class="menu-support" aria-label="Hỗ trợ và chính sách">{support_links}</nav>
+</section>
+
