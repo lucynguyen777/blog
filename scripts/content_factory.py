@@ -734,7 +734,9 @@ def is_operating_hours():
     if not cfg_hours: return True
     p_start = cfg_hours.get('pause_start_hour', 1)
     p_resume = cfg_hours.get('resume_hour', 8)
-    h = datetime.now().hour
+    from datetime import timedelta
+    vn_tz = timezone(timedelta(hours=7))
+    h = datetime.now(vn_tz).hour
     if p_start <= h < p_resume:
         return False
     return True
