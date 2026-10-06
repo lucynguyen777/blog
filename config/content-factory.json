@@ -1,8 +1,8 @@
 {
   "enabled": true,
-  "target_articles": null,
+  "target_articles": 20000,
   "pair_size": 2,
-  "pairs_per_run": 6,
+  "pairs_per_run": 10,
   "minimum_score": 75,
   "minimum_words": 900,
   "maximum_words": 1800,

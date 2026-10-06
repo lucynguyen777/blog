@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       pairs:
-        description: 'Số cặp, mỗi cặp 2 bài (mặc định 6)'
+        description: 'Số cặp, mỗi cặp 2 bài (mặc định 10, tối đa 10)'
         required: false
-        default: '6'
+        default: '10'
 
 permissions:
   contents: write
@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           pairs='${{ inputs.pairs }}'
-          if ! [[ "$pairs" =~ ^[1-6]$ ]]; then pairs=6; fi
+          if ! [[ "$pairs" =~ ^([1-9]|10)$ ]]; then pairs=10; fi
           echo "limit=$((pairs * 2))" >> "$GITHUB_OUTPUT"
       - name: Stop check, queue, write and QA
         run: python3 scripts/content_factory.py run --limit '${{ steps.batch.outputs.limit }}'
