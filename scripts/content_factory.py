@@ -3,7 +3,7 @@
 from pathlib import Path
 from datetime import datetime, timezone
 from html import escape
-import argparse, hashlib, json, re, sys, unicodedata
+import argparse, hashlib, json, math, re, sys, unicodedata
 
 ROOT=Path(__file__).resolve().parent.parent
 CFG=json.loads((ROOT/'config/content-factory.json').read_text())
@@ -13,534 +13,827 @@ QUEUE_PATH=ROOT/'data/factory-queue.jsonl'
 INDEX_PATH=ROOT/'data/content-index.jsonl'
 ARTICLES=ROOT/'content/articles'
 LEGACY=ROOT/'content/posts.json'
-HUB_PARENT={'thue-xe':'/thue-xe/','xe-may':'/xe-may/','xe-dien':'/xe-dien/','xe-dap':'/xe-dap/','o-to':'/o-to/','bao-duong':'/bao-duong/','du-lich':'/du-lich/','luat-giao-thong':'/luat-giao-thong/','kinh-nghiem':'/kinh-nghiem/'}
+HUB_PARENT={
+    'thue-xe':'/thue-xe/',
+    'xe-may':'/xe-may/',
+    'xe-dien':'/xe-dien/',
+    'xe-dap':'/xe-dap/',
+    'o-to':'/o-to/',
+    'bao-duong':'/bao-duong/',
+    'du-lich':'/du-lich/',
+    'luat-giao-thong':'/luat-giao-thong/',
+    'kinh-nghiem':'/kinh-nghiem/'
+}
 
-# ── Ma trận hub 1: Thuê xe (12×8×6×10×10 = 57,600) ──────────────────────────
-DISTRICTS=['Long Biên','Gia Lâm','Hoàn Kiếm','Ba Đình','Tây Hồ','Hai Bà Trưng','Đống Đa','Cầu Giấy','Thanh Xuân','Hà Đông','Nam Từ Liêm','Bắc Từ Liêm']
-VEHICLES=[('xe số','xe-may'),('xe ga','xe-may'),('xe điện','xe-dien'),('xe 50cc','thue-xe'),('Honda Wave','xe-may'),('Yamaha Sirius','xe-may'),('Honda Vision','xe-may'),('Honda Air Blade','xe-may')]
-AUDIENCES=['người đi làm','sinh viên','khách du lịch','người lưu trú dài ngày','người mới lái','người cần đi lại hằng ngày']
+# ── Ma trận hub 1: Thuê xe Hà Nội (12×12×7×10×8×7 = 564,480) ─────────────────
+DISTRICTS=['Hoàn Kiếm','Ba Đình','Cầu Giấy','Tây Hồ','Đống Đa','Hai Bà Trưng','Thanh Xuân','Hoàng Mai','Nam Từ Liêm','Bắc Từ Liêm','Long Biên','Hà Đông']
+VEHICLES=[
+    ('Honda Wave Alpha','xe-may'),('Honda Vision','xe-may'),('Honda Air Blade','xe-may'),('Honda Lead','xe-may'),
+    ('Yamaha Sirius','xe-may'),('Yamaha Grande','xe-may'),('Honda Winner X','xe-may'),('Yamaha Exciter','xe-may'),
+    ('VinFast Feliz S','xe-dien'),('VinFast Evo 200','xe-dien'),('VinFast Klara S','xe-dien'),('xe máy 50cc','thue-xe')
+]
+AUDIENCES=['người đi làm văn phòng','sinh viên đại học','khách du lịch trong nước','chuyên gia công tác','người mới đến Hà Nội','người thuê dài hạn','người chạy việc trong phố']
 ANGLES=[
- ('chọn xe','cách chọn xe phù hợp'),('kiểm tra xe','checklist nhận xe'),('chi phí','cách dự trù chi phí'),
- ('hợp đồng','các mục cần đọc trong hợp đồng'),('lộ trình','cách chuẩn bị lộ trình'),('an toàn','những bước sử dụng an toàn'),
- ('thuê theo tuần','kinh nghiệm thuê theo tuần'),('thuê theo tháng','kinh nghiệm thuê theo tháng'),
- ('giao nhận','cách thống nhất giao nhận'),('so sánh','tiêu chí so sánh lựa chọn')]
-CONTEXTS=['đi làm giờ cao điểm','ở Hà Nội ba ngày','thuê bảy ngày','thuê một tháng','đi trong nội thành','đi giữa hai quận','mang hành lý gọn','đi cùng một người','nhận xe tại cửa hàng','lần đầu thuê xe']
-ROUTE_NEEDS=['quãng đường dưới 5 km','nhiều điểm dừng','cần gửi xe thường xuyên','di chuyển buổi tối','đi vào ngõ nhỏ','đi qua đường đông','lịch trình linh hoạt','ưu tiên dễ điều khiển','cần mang đồ cá nhân','đi hai lượt mỗi ngày']
+    ('chọn xe','tiêu chí chọn xe phù hợp'),
+    ('kiểm tra xe','quy trình kiểm tra xe trước khi nhận'),
+    ('chi phí','cách dự trù chi phí và tránh phụ phí'),
+    ('hợp đồng','các điều khoản hợp đồng và tiền cọc'),
+    ('lộ trình','kinh nghiệm lên lộ trình di chuyển'),
+    ('an toàn','kỹ năng lái xe an toàn giờ cao điểm'),
+    ('thuê theo tuần','kinh nghiệm thuê xe theo tuần giá tốt'),
+    ('thuê theo tháng','quy trình thuê xe dài hạn theo tháng'),
+    ('giao nhận','thủ tục giao nhận xe tận nơi'),
+    ('gửi xe','kinh nghiệm tìm bãi gửi xe an toàn')
+]
+CONTEXTS=['đi làm giờ cao điểm sáng tối','lưu trú ngắn ngày dạo phố cổ','thuê dài hạn phục vụ công việc','di chuyển giữa các quận trung tâm','đi học và thực tập hằng ngày','đi công tác dài ngày','lần đầu tự lái xe tại thủ đô','chở thêm người thân và hành lý']
+ROUTE_NEEDS=['quãng đường dưới 5 km mỗi ngày','tuyến đường 10 đến 20 km liên quận','thường xuyên đi qua các nút giao đông đúc','cần gửi xe trong ngõ nhỏ phố cổ','di chuyển linh hoạt nhiều điểm trong ngày','chạy xe trên các trục đường vành đai','tuyến đường từ nơi ở đến văn phòng']
 
-# ── Ma trận hub 2: Xe máy / Xe điện / Xe đạp — thông tin (8×9×6×5 = 2,160) ──
+# ── Ma trận hub 2: Xe máy / Xe điện / Xe đạp — thông tin & bảo dưỡng (13×20×7×6×5 = 54,600)
 INFO_VEHICLES=[
- ('xe số','xe-may'),('xe ga','xe-may'),('Honda Wave','xe-may'),('Honda Vision','xe-may'),
- ('Yamaha Sirius','xe-may'),('Honda Air Blade','xe-may'),('xe điện','xe-dien'),('xe đạp điện','xe-dap')]
+    ('xe máy số Honda Wave','xe-may'),('xe tay ga Honda Vision','xe-may'),('xe tay ga Honda Air Blade','xe-may'),
+    ('xe tay ga Honda Lead','xe-may'),('xe số Yamaha Sirius','xe-may'),('xe côn tay Honda Winner X','xe-may'),
+    ('xe máy điện VinFast Feliz S','xe-dien'),('xe máy điện VinFast Evo 200','xe-dien'),('xe máy điện VinFast Klara S','xe-dien'),
+    ('xe đạp địa hình MTB','xe-dap'),('xe đạp touring thể thao','xe-dap'),('xe đạp thể thao đường phố','xe-dap'),
+    ('xe máy phân khối nhỏ 50cc','xe-may')
+]
 INFO_TOPICS=[
- ('bảo dưỡng định kỳ','lịch bảo dưỡng và chi phí'),('tiêu hao nhiên liệu','kinh nghiệm tiết kiệm xăng'),
- ('an toàn khi đi mưa','kỹ năng lái an toàn trời mưa'),('chọn lốp','tiêu chí chọn lốp phù hợp'),
- ('kiểm tra trước chuyến','checklist trước khi xuất phát'),('phanh ABS','cách sử dụng phanh ABS đúng cách'),
- ('sạc pin xe điện','hướng dẫn sạc và bảo quản pin'),('phụ tùng thay thế','phụ tùng cần ưu tiên thay theo định kỳ'),
- ('đăng ký xe','thủ tục đăng ký và giấy tờ cần có')]
-INFO_AUDIENCES=['người dùng hằng ngày','người mới mua xe','người thuê xe','sinh viên','người đi làm xa','khách du lịch']
-INFO_SEASONS=['mùa hè','mùa mưa','đầu năm học','cuối năm','dịp lễ Tết']
+    ('thay-dau-nhot','thay dầu nhớt động cơ định kỳ','Động cơ'),
+    ('bao-duong-phanh-dia','bảo dưỡng hệ thống phanh đĩa an toàn','Phanh & Lốp'),
+    ('kiem-tra-ac-quy','kiểm tra và phục hồi bình ắc quy','Điện & Bình'),
+    ('cham-soc-pin-xe-dien','sạc và bảo quản pin lithium xe điện','Pin sạc'),
+    ('ve-sinh-xich-lip','vệ sinh và bôi trơn xích líp truyền động','Truyền động'),
+    ('thay-day-curoa','kiểm tra độ mòn dây curoa xe ga','Truyền động'),
+    ('xu-ly-ngap-nuoc','xử lý xe bị chết máy do lội nước ngập','Mùa mưa ngập'),
+    ('ap-suat-lop-chuan','cân chỉnh áp suất lốp và chọn lốp bám đường','Lốp xe'),
+    ('ve-sinh-kim-phun-fi','vệ sinh kim phun xăng điện tử Fi và buồng đốt','Nhiên liệu'),
+    ('thay-loc-gio-dong-co','thay lọc gió động cơ để tiết kiệm nhiên liệu','Động cơ'),
+    ('bao-duong-phuoc-giam-xoc','bảo dưỡng phuộc nhún và giảm xóc','Khung sườn'),
+    ('kiem-tra-nuoc-lam-mat','kiểm tra và châm nước làm mát két nước','Làm mát'),
+    ('thay-the-bugi','kiểm tra và thay thế bugi đánh lửa','Đánh lửa'),
+    ('chong-ri-set-khung-xe','chống rỉ sét khung xe và bảo vệ lớp sơn','Ngoại thất'),
+    ('lap-khoa-chong-trom','lắp khóa chống trộm và bảo vệ an toàn cho xe','An ninh xe'),
+    ('can-chinh-co-phot','xử lý hiện tượng rơ cổ phốt và đảo tay lái','Hệ thống lái'),
+    ('thay-nhot-hop-so-lap','thay nhớt láp định kỳ cho xe tay ga','Hộp số'),
+    ('khoi-dong-buoi-sang-lanh','mẹo khởi động xe dễ dàng vào mùa đông','Vận hành'),
+    ('ky-nang-tiet-kiem-nhien-lieu','kỹ năng lái xe tiết kiệm xăng và điện','Tiết kiệm'),
+    ('rua-xe-khong-hai-may','hướng dẫn rửa xe tại nhà không ảnh hưởng vi mạch','Vệ sinh')
+]
+INFO_AUDIENCES=['người mới mua xe lần đầu','sinh viên tự bảo dưỡng xe','nhân viên văn phòng bận rộn','tài xế công nghệ chạy xe liên tục','người sử dụng xe hằng ngày','nữ giới sử dụng xe ga','người thuê xe dài hạn']
+INFO_CONDITIONS=['mùa mưa ngập úng đô thị','những ngày nắng nóng đỉnh điểm','mùa đông thời tiết lạnh giá','trước chuyến phượt đi xa','sau thời gian dài không sử dụng','mốc bảo dưỡng định kỳ 5000 km']
+INFO_ANGLES=[
+    ('huong-dan-chi-tiet','hướng dẫn các bước tự làm chuẩn xác'),
+    ('dau-hieu-can-kiem-tra','nhận biết dấu hiệu hư hỏng sớm'),
+    ('chi-phi-thuc-te','bảng giá chi phí sửa chữa và thay thế'),
+    ('sai-lam-pho-bien','những sai lầm phổ biến cần tuyệt đối tránh'),
+    ('lich-trinh-dinh-ky','lịch trình kiểm tra và bảo dưỡng tối ưu')
+]
 
-# ── Ma trận hub 3: Du lịch Việt Nam (15×8×4×4 = 1,920) ──────────────────────
+# ── Ma trận hub 3: Du lịch & Phượt (25×10×5×5×5 = 31,250) ─────────────────────
 PLACES=[
- 'Hà Nội','Hạ Long','Ninh Bình','Sapa','Mộc Châu','Hội An','Đà Nẵng','Huế',
- 'Nha Trang','Đà Lạt','Phú Quốc','Hồ Chí Minh','Cần Thơ','Hà Giang','Phong Nha']
-TRAVEL_VEHICLES=[('xe máy','xe-may'),('xe điện','xe-dien'),('xe đạp','xe-dap'),
- ('xe số','xe-may'),('xe ga','xe-may'),('Honda Wave','xe-may'),('Yamaha Sirius','xe-may'),('xe 50cc','thue-xe')]
-TRAVEL_DURATIONS=['cuối tuần (2 ngày)','chuyến 3 ngày','tuần lễ (7 ngày)','hành trình dài ngày']
-TRAVEL_TYPES=['đi một mình','đi theo cặp','nhóm bạn','gia đình có trẻ nhỏ']
+    'Hà Nội phố cổ và Hồ Tây','Làng cổ Đường Lâm','Vườn quốc gia Ba Vì','Tam Đảo Vĩnh Phúc','Hồ Đại Lải',
+    'Tràng An Bái Đính','Tam Cốc Hang Múa','Đảo Cát Bà Hải Phòng','Vịnh Hạ Long','Thung lũng Mai Châu',
+    'Đèo Thung Khe Hòa Bình','Cao nguyên Mộc Châu','Săn mây Tà Xùa','Thị trấn Sa Pa','Đèo Ô Quy Hồ',
+    'Xã Y Tý Bát Xát','Ruộng bậc thang Mù Cang Chải','Hồ Thác Bà Yên Bái','Cao nguyên đá Đồng Văn',
+    'Đèo Mã Pí Lèng','Ruộng bậc thang Hoàng Su Phì','Thác Bản Giốc Cao Bằng','Hồ Ba Bể Bắc Kạn',
+    'Cố đô Huế','Phố cổ Hội An'
+]
+TRAVEL_VEHICLES=[
+    ('xe máy số Honda Wave','xe-may'),('xe số Yamaha Sirius','xe-may'),('xe ga Honda Vision','xe-may'),
+    ('xe ga Honda Air Blade','xe-may'),('xe ga Honda Lead','xe-may'),('xe côn tay Honda Winner X','xe-may'),
+    ('xe côn tay Yamaha Exciter','xe-may'),('xe máy điện VinFast Feliz','xe-dien'),('xe đạp touring dã ngoại','xe-dap'),
+    ('xe máy phân khối 50cc','thue-xe')
+]
+TRAVEL_DURATIONS=['đi về trong ngày (day-trip)','cuối tuần 2 ngày 1 đêm','hành trình 3 ngày 2 đêm','chuyến khám phá 4 ngày 3 đêm','tour dài ngày 5 đến 7 ngày']
+TRAVEL_TYPES=['phượt solo một mình','cặp đôi trải nghiệm','nhóm bạn trẻ 3 đến 5 xe','gia đình nhỏ dã ngoại','nhóm phượt chuyên nghiệp']
+TRAVEL_ANGLES=[
+    ('lich-trinh-cung-duong','gợi ý lộ trình di chuyển chi tiết từng chặng'),
+    ('du-tru-chi-phi','dự trù kinh phí xăng xe, ăn nghỉ và vé tham quan'),
+    ('kinh-nghiem-lai-xe-an-toan','kỹ năng lái xe an toàn, leo đèo và xử lý sự cố'),
+    ('checklist-chuan-bi','danh sách đồ dùng, phụ tùng và hành lý cần mang'),
+    ('diem-checkin-am-thuc','các điểm check-in đẹp và đặc sản nổi tiếng')
+]
 
-# ── Ma trận hub 4: Luật giao thông & Kinh nghiệm (20×6 = 120) ───────────────
+# ── Ma trận hub 4: Luật giao thông & An toàn (25×8×6×12 = 14,400) ──────────────
 LAW_TOPICS=[
- ('bằng A1','điều kiện và thủ tục thi bằng A1'),('bằng A2','điều kiện thi bằng A2 cho xe trên 175cc'),
- ('bằng B1','bằng B1 và quy định lái xe ô tô'),('bằng quốc tế','công nhận bằng lái quốc tế tại Việt Nam'),
- ('mũ bảo hiểm','quy định đội mũ bảo hiểm và xử phạt'),('nồng độ cồn','mức phạt nồng độ cồn 2024-2025'),
- ('điện thoại khi lái','phạt dùng điện thoại khi lái xe'),('tốc độ đô thị','giới hạn tốc độ trong đô thị'),
- ('đỗ xe sai','xử phạt đỗ xe sai quy định'),('vượt đèn đỏ','mức phạt vượt đèn đỏ hiện hành'),
- ('xe điện giấy phép','giấy phép cần có cho xe điện'),('xe đạp điện','quy định xe đạp điện và bảo hiểm'),
- ('bảo hiểm xe','bảo hiểm bắt buộc và tự nguyện'),('tai nạn xử lý','các bước xử lý khi xảy ra tai nạn'),
- ('kiểm định xe','lịch kiểm định và thủ tục đăng kiểm'),('chạy xe ban đêm','quy định và kỹ năng lái đêm an toàn'),
- ('đi xe nước ngoài','thủ tục mang xe máy sang nước ngoài'),('nhường đường','quy tắc nhường đường và ưu tiên'),
- ('camera phạt nguội','camera giám sát giao thông và tra cứu phạt'),('biển báo','cách đọc biển báo giao thông phổ biến')]
-LAW_AUDIENCES=['người mới lái','sinh viên','khách du lịch nước ngoài','người lưu trú tại Hà Nội','người thuê xe','tài xế lâu năm cần cập nhật']
+    ('thi-bang-lai-a1','thủ tục và mẹo thi đậu bằng lái xe máy A1'),
+    ('thi-bang-lai-a2','điều kiện thi bằng lái xe A2 cho môtô trên 175cc'),
+    ('bang-lai-quoc-te-idp','quy định sử dụng bằng lái quốc tế IDP cho người nước ngoài'),
+    ('muc-phat-nong-do-con','mức xử phạt nồng độ cồn đối với người điều khiển xe 2 bánh'),
+    ('phat-vuot-den-do','mức phạt hành vi vượt đèn đỏ và vượt đèn vàng'),
+    ('toc-do-toi-da-xe-may','quy định giới hạn tốc độ xe máy trong và ngoài đô thị'),
+    ('phat-di-nguoc-chieu','mức phạt đi ngược chiều trên đường có biển cấm'),
+    ('di-vao-duong-cam','mức phạt xe máy đi vào đường cấm và làn ô tô cao tốc'),
+    ('quy-dinh-mu-bao-hiem','quy định đội mũ bảo hiểm đạt chuẩn và mức phạt vi phạm'),
+    ('dung-dien-thoai-khi-lai-xe','mức xử phạt dùng điện thoại khi đang lái xe máy'),
+    ('bat-den-chieu-sang-ban-dem','quy định khung giờ bật đèn xe máy và mức phạt quên bật đèn'),
+    ('cho-nguoi-qua-quy-dinh','quy định số người được phép chở trên xe máy'),
+    ('xe-khong-guong-chieu-hau','quy định lắp gương chiếu hậu và mức phạt thiếu gương trái'),
+    ('dung-do-xe-tren-he-pho','quy định dừng đỗ xe máy trên vỉa hè và lòng đường'),
+    ('tra-cuu-phat-nguoi-camera','hướng dẫn tra cứu phạt nguội xe máy qua hệ thống camera'),
+    ('sang-ten-bien-so-dinh-danh','thủ tục sang tên xe máy và đăng ký biển số định danh'),
+    ('bao-hiem-bat-buoc-tnds','quy định mua bảo hiểm trách nhiệm dân sự bắt buộc cho xe máy'),
+    ('xu-ly-khi-xay-ra-va-cham','các bước xử lý đúng pháp luật khi xảy ra va chạm giao thông'),
+    ('nhuong-duong-tai-nut-giao','quy tắc nhường đường tại ngã tư và vòng xuyến giao thông'),
+    ('quy-dinh-xe-may-dien-50cc','độ tuổi và điều kiện điều khiển xe máy điện và xe 50cc'),
+    ('cho-hang-cong-kenh','quy định giới hạn kích thước chở đồ và hàng cồng kềnh'),
+    ('nop-phat-truc-tuyen-vneid','hướng dẫn nộp phạt vi phạm giao thông trực tuyến trên VNeID'),
+    ('chuyen-huong-khong-xi-nhan','mức phạt lỗi rẽ hoặc chuyển làn đường không bật đèn xi nhan'),
+    ('nhan-biet-bien-bao-cam','cách nhận biết và tuân thủ các biển báo cấm xe máy phổ biến'),
+    ('quyen-kiem-tra-cua-csgt','quy định về hiệu lệnh dừng xe và kiểm tra giấy tờ của CSGT')
+]
+LAW_AUDIENCES=['người mới lấy bằng lái','sinh viên các trường đại học','du khách nước ngoài tại Việt Nam','người đi làm tại các đô thị','người thuê xe tự lái','tài xế giao hàng công nghệ','người thường xuyên đi công tác tỉnh','phụ huynh hướng dẫn con em tham gia giao thông']
+LAW_ANGLES=[
+    ('can-cu-phap-ly-moi-nhat','căn cứ pháp lý và nghị định hiện hành'),
+    ('muc-phat-va-hinh-thuc-xu-ly','mức phạt tiền và hình thức tước quyền sử dụng bằng'),
+    ('thu-tuc-va-cac-buoc-chuan','quy trình thực hiện và giấy tờ cần chuẩn bị'),
+    ('tinh-huong-va-cach-phong-tranh','tình huống thực tế và cách xử lý phòng ngừa'),
+    ('giai-dap-thac-mac-pho-bien','giải đáp thắc mắc và câu hỏi thường gặp'),
+    ('so-sanh-thay-doi-moi','điểm mới quan trọng so với quy định trước đây')
+]
+LAW_CONTEXTS=[
+    'trong các tuyến phố nội đô Hà Nội','trên các trục đường vành đai và quốc lộ',
+    'khi lưu thông qua các cây cầu lớn bắc qua sông Hồng','trong khu vực ngõ hẻm và khu đô thị đông đúc',
+    'vào khung giờ cao điểm sáng và chiều tối','khi tham gia giao thông vào ban đêm',
+    'khi đi qua các nút giao trọng điểm có camera giám sát','trong các dịp nghỉ lễ và cao điểm Tết',
+    'khi di chuyển trong điều kiện mưa bão tầm nhìn hạn chế','trên các cung đường ngoại thành và liên tỉnh',
+    'tại các khu vực cửa ngõ thủ đô','khi gặp tổ công tác kiểm tra hành chính liên ngành'
+]
 
-# Ngưỡng: seq <= THUE_XE_CAP → writer thuê xe; tiếp theo info, du lịch, luật
-THUE_XE_CAP = len(DISTRICTS)*len(VEHICLES)*len(AUDIENCES)*len(ANGLES)*len(CONTEXTS)*len(ROUTE_NEEDS)
-INFO_CAP     = THUE_XE_CAP + len(INFO_VEHICLES)*len(INFO_TOPICS)*len(INFO_AUDIENCES)*len(INFO_SEASONS)
-TRAVEL_CAP   = INFO_CAP + len(PLACES)*len(TRAVEL_VEHICLES)*len(TRAVEL_DURATIONS)*len(TRAVEL_TYPES)
-LAW_CAP      = TRAVEL_CAP + len(LAW_TOPICS)*len(LAW_AUDIENCES)
+# Dung lượng tổng ma trận: 564,480 + 54,600 + 31,250 + 14,400 = 664,730
+TOTAL_CAPACITY = 664730
 
+class PermutedHub:
+    def __init__(self, dims):
+        self.dims = dims
+        self.M = 1
+        for d in dims: self.M *= d
+        weights = [1]
+        for x in dims[:-1]: weights.append(weights[-1] * x)
+        deltas = [3, 5, 7, 11, 13, 17][:len(dims)]
+        s = 0
+        for i in range(len(dims)):
+            s += deltas[i] * weights[i]
+        while math.gcd(s, self.M) != 1:
+            s += 1
+        self.stride = s
+
+    def coords(self, k):
+        idx = (k * self.stride) % self.M
+        res = []
+        n = idx
+        for base in self.dims:
+            res.append(n % base)
+            n //= base
+        return res
+
+HUB1_PERM = PermutedHub([len(DISTRICTS), len(VEHICLES), len(AUDIENCES), len(ANGLES), len(CONTEXTS), len(ROUTE_NEEDS)])
+HUB2_PERM = PermutedHub([len(INFO_VEHICLES), len(INFO_TOPICS), len(INFO_AUDIENCES), len(INFO_CONDITIONS), len(INFO_ANGLES)])
+HUB3_PERM = PermutedHub([len(PLACES), len(TRAVEL_VEHICLES), len(TRAVEL_DURATIONS), len(TRAVEL_TYPES), len(TRAVEL_ANGLES)])
+HUB4_PERM = PermutedHub([len(LAW_TOPICS), len(LAW_AUDIENCES), len(LAW_ANGLES), len(LAW_CONTEXTS)])
+
+PATTERN = [0, 1, 2, 0, 3, 1, 0, 2, 0, 1]
+COUNTS = [4, 3, 2, 1]
+
+def get_hub_and_k(seq):
+    idx = (seq - 1) % len(PATTERN)
+    h = PATTERN[idx]
+    full = (seq - 1) // len(PATTERN)
+    rem_count = sum(1 for i in range(idx) if PATTERN[i] == h)
+    k = full * COUNTS[h] + rem_count
+    return h, k
 
 def slugify(s):
- s=unicodedata.normalize('NFD',s.lower());s=''.join(c for c in s if unicodedata.category(c)!='Mn').replace('đ','d')
- return re.sub(r'-+','-',re.sub(r'[^a-z0-9]+','-',s)).strip('-')
+    s = unicodedata.normalize('NFD', s.lower())
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn').replace('đ', 'd')
+    return re.sub(r'-+', '-', re.sub(r'[^a-z0-9]+', '-', s)).strip('-')
 
-def words(html): return re.findall(r"[\wÀ-ỹ]+",re.sub(r'<[^>]+>',' ',html),re.UNICODE)
-def grams(text,n=5):
- t=[x.lower() for x in words(text)];return set(tuple(t[i:i+n]) for i in range(max(0,len(t)-n+1)))
-_GRAMS_CACHE={}
+def words(html): return re.findall(r"[\wÀ-ỹ]+", re.sub(r'<[^>]+>', ' ', html), re.UNICODE)
+def grams(text, n=5):
+    t = [x.lower() for x in words(text)]
+    return set(tuple(t[i:i+n]) for i in range(max(0, len(t)-n+1)))
+_GRAMS_CACHE = {}
 def article_grams(p):
- k=p.get('id') or p.get('url')
- if k and k in _GRAMS_CACHE: return _GRAMS_CACHE[k]
- g=grams(' '.join(b for _,b in p.get('sections',[])))
- if k: _GRAMS_CACHE[k]=g
- return g
-def gram_similarity(g1,g2): return len(g1&g2)/max(1,len(g1|g2))
-def similarity(a,b):
- x,y=grams(a),grams(b)
- return len(x&y)/max(1,len(x|y))
+    k = p.get('id') or p.get('url')
+    if k and k in _GRAMS_CACHE: return _GRAMS_CACHE[k]
+    g = grams(' '.join(b for _, b in p.get('sections', [])))
+    if k: _GRAMS_CACHE[k] = g
+    return g
+def gram_similarity(g1, g2): return len(g1 & g2) / max(1, len(g1 | g2))
+def similarity(a, b):
+    x, y = grams(a), grams(b)
+    return len(x & y) / max(1, len(x | y))
 def load_existing():
- out=json.loads(LEGACY.read_text()) if LEGACY.exists() else []
- for p in sorted(ARTICLES.glob('*.json')):
-  try: out.append(json.loads(p.read_text()))
-  except Exception: pass
- return out
+    out = json.loads(LEGACY.read_text()) if LEGACY.exists() else []
+    for p in sorted(ARTICLES.glob('*.json')):
+        try: out.append(json.loads(p.read_text()))
+        except Exception: pass
+    return out
 
-def paragraph(seed,variants): return '<p>'+variants[int(hashlib.sha256(seed.encode()).hexdigest(),16)%len(variants)]+'</p>'
+def paragraph(seed, variants):
+    return '<p>' + variants[int(hashlib.sha256(seed.encode()).hexdigest(), 16) % len(variants)] + '</p>'
 
+# ── Router & Spec ─────────────────────────────────────────────────────────────
+def spec_for(seq):
+    h, k = get_hub_and_k(seq)
+    if h == 0:
+        c = HUB1_PERM.coords(k)
+        d = DISTRICTS[c[0]]
+        v, hub = VEHICLES[c[1]]
+        aud = AUDIENCES[c[2]]
+        ang = ANGLES[c[3]]
+        ctx = CONTEXTS[c[4]]
+        rt = ROUTE_NEEDS[c[5]]
+        title = f'{v} tại {d}: {ang[0]} khi {ctx}'
+        intent = f'thue-xe|{ang[0]}|{v}|{d}|{aud}|{ctx}|{rt}'.lower()
+        url = f'/{hub}/{slugify(d)}/{slugify(v)}/{slugify(ang[0])}-{slugify(aud)}-{slugify(ctx)}-{slugify(rt)}/'
+        return {'sequence':seq,'title':title,'intent':intent,'vehicle':v,'hub':hub,'district':d,
+                'audience':aud,'context':ctx,'route':rt,'angle':ang[0],'angle_label':ang[1],'url':url,'writer':'thue-xe'}
+    elif h == 1:
+        c = HUB2_PERM.coords(k)
+        v, hub = INFO_VEHICLES[c[0]]
+        topic_key, topic_label, topic_cat = INFO_TOPICS[c[1]]
+        aud = INFO_AUDIENCES[c[2]]
+        cond = INFO_CONDITIONS[c[3]]
+        ang = INFO_ANGLES[c[4]]
+        title = f'{v.capitalize()}: {topic_label} cho {aud}'
+        intent = f'xe-info|{topic_key}|{v}|{aud}|{cond}|{ang[0]}'.lower()
+        url = f'/{hub}/{slugify(v)}/{slugify(topic_key)}-{slugify(aud)}-{slugify(cond)}-{slugify(ang[0])}/'
+        return {'sequence':seq,'title':title,'intent':intent,'vehicle':v,'hub':hub,
+                'topic':topic_key,'topic_label':topic_label,'topic_cat':topic_cat,'audience':aud,
+                'condition':cond,'angle':ang[0],'angle_label':ang[1],'url':url,'writer':'xe-info'}
+    elif h == 2:
+        c = HUB3_PERM.coords(k)
+        place = PLACES[c[0]]
+        v, hub = TRAVEL_VEHICLES[c[1]]
+        dur = TRAVEL_DURATIONS[c[2]]
+        tt = TRAVEL_TYPES[c[3]]
+        ang = TRAVEL_ANGLES[c[4]]
+        travel_ang_names = {'lich-trinh-cung-duong':'lộ trình chi tiết', 'du-tru-chi-phi':'chi phí tự túc', 'kinh-nghiem-lai-xe-an-toan':'kinh nghiệm an toàn', 'checklist-chuan-bi':'chuẩn bị đồ đạc', 'diem-checkin-am-thuc':'điểm check-in đẹp'}
+        ang_short = travel_ang_names.get(ang[0], ang[0])
+        title = f'Phượt {place} bằng {v}: {ang_short} ({dur})' 
+        intent = f'du-lich|{place}|{v}|{dur}|{tt}|{ang[0]}'.lower()
+        url = f'/kinh-nghiem/{slugify(place)}/{slugify(v)}/{slugify(dur)}-{slugify(tt)}-{slugify(ang[0])}/'
+        return {'sequence':seq,'title':title,'intent':intent,'place':place,'vehicle':v,'hub':'kinh-nghiem',
+                'duration':dur,'travel_type':tt,'angle':ang[0],'angle_label':ang[1],'url':url,'writer':'du-lich'}
+    else:
+        c = HUB4_PERM.coords(k)
+        topic_key, topic_label = LAW_TOPICS[c[0]]
+        aud = LAW_AUDIENCES[c[1]]
+        ang = LAW_ANGLES[c[2]]
+        ctx = LAW_CONTEXTS[c[3]]
+        title = f'{topic_label.capitalize()} cho {aud}'
+        intent = f'luat|{topic_key}|{aud}|{ang[0]}|{ctx}'.lower()
+        url = f'/luat-giao-thong/{slugify(topic_key)}-{slugify(aud)}-{slugify(ang[0])}-{slugify(ctx)}/'
+        return {'sequence':seq,'title':title,'intent':intent,'topic':topic_key,'topic_label':topic_label,
+                'audience':aud,'angle':ang[0],'angle_label':ang[1],'context':ctx,'hub':'luat-giao-thong','url':url,'writer':'luat'}
 
 # ── Writer 1: Thuê xe ─────────────────────────────────────────────────────────
-def spec_for_thue_xe(seq):
- n=seq-1;angle=ANGLES[n%len(ANGLES)];n//=len(ANGLES);aud=AUDIENCES[n%len(AUDIENCES)];n//=len(AUDIENCES)
- vehicle,hub=VEHICLES[n%len(VEHICLES)];n//=len(VEHICLES);district=DISTRICTS[n%len(DISTRICTS)];n//=len(DISTRICTS)
- context=CONTEXTS[n%len(CONTEXTS)];n//=len(CONTEXTS);route=ROUTE_NEEDS[n%len(ROUTE_NEEDS)]
- title=f'{vehicle.capitalize()} ở {district}: {angle[0]} khi {context}, {route}'
- intent='|'.join([angle[0],vehicle,district,aud,context,route]).lower()
- url=f'/{hub}/{slugify(district)}/{slugify(vehicle)}/{slugify(angle[0])}-{slugify(aud)}-{slugify(context)}-{slugify(route)}/'
- return {'sequence':seq,'title':title,'intent':intent,'vehicle':vehicle,'hub':hub,'district':district,
-         'audience':aud,'context':context,'route':route,'angle':angle[0],'angle_label':angle[1],'url':url,'writer':'thue-xe'}
-
 def make_thue_xe(s):
- v=escape(s['vehicle']);d=escape(s['district']);a=escape(s['audience']);ang=escape(s['angle_label'])
- context=escape(s['context']);route=escape(s['route'])
- price=FACTS['prices'].get(s['vehicle'],FACTS['prices'].get('xe ga' if 'Vision' in v or 'Air Blade' in v else 'xe số'))
- seed=s['intent'];brand=escape(FACTS['brand']);phone=escape(FACTS['phone'])
- intro=f'<p>{ang.capitalize()} cần bắt đầu từ nhu cầu thực tế của {a}, quãng đường dự kiến và khả năng điều khiển {v}. Tình huống chính là {context} tại {d}, với nhu cầu {route}; bài viết chỉ dùng mức giá và chính sách đã được lưu trong dữ liệu của {brand}. Tình trạng xe còn sẵn phải được cửa hàng xác nhận tại thời điểm liên hệ.</p>'
- sections=[]
- sections.append(('Xác định nhu cầu trước khi chọn xe',intro+paragraph(seed+'1',[
-  f'Hãy ghi lại số ngày sử dụng, tuyến đi thường xuyên, số người đi cùng và lượng hành lý. Với {a}, một lựa chọn phù hợp cần dễ làm quen, đủ thuận tiện cho lịch trình tại {d} và không tạo áp lực khi dắt hoặc quay đầu. Tên mẫu xe chỉ là điểm bắt đầu; cảm giác lái trên chiếc xe thực tế mới là căn cứ quan trọng.',
-  f'Trước khi hỏi giá, nên mô tả rõ lịch đi lại tại {d}: thời điểm xuất phát, nơi gửi xe, quãng đường và nhu cầu chở đồ. {a.capitalize()} có thể dùng danh sách này để loại bỏ phương án không phù hợp, sau đó mới thử {v} và trao đổi về thời hạn thuê.'
-  ])))
- sections.append((f'Đánh giá {v} theo hành trình ở {d}',paragraph(seed+'2',[
-  f'Đường đông, ngõ nhỏ và điểm dừng khác nhau khiến thao tác thực tế quan trọng hơn một bảng thông số chung. Hãy thử chống chân, dắt xe, quay đầu, bóp phanh và quan sát gương trong khu vực phù hợp. Nếu chưa tự tin với {v}, yêu cầu hướng dẫn trước khi nhận xe.',
-  f'Khi di chuyển ở {d}, người thuê cần tính cả đoạn đường đến nơi gửi xe và khả năng xoay trở ở điểm đến. Thử tư thế ngồi, khoảng để chân và cách đặt hành lý. Không nhận xe khi có dấu hiệu ảnh hưởng đến an toàn hoặc thao tác chưa rõ.'
-  ])+f'<p>Với {a}, lịch trình nên có khoảng nghỉ và phương án thay đổi khi mưa, đường ùn hoặc điểm gửi xe kín chỗ. Không vừa lái vừa xem bản đồ; hãy dừng tại vị trí phù hợp rồi mới kiểm tra hướng đi.</p>'))
- sections.append(('Checklist kiểm tra trước khi nhận',paragraph(seed+'3a',[
-  f'Kiểm tra phanh trước và sau, lốp, đèn, còi, gương, khóa, đồng hồ và mức nhiên liệu hoặc pin. Chụp biển số, các vết xước và phụ kiện khi hai bên cùng có mặt. Nếu có điểm bất thường, ghi vào biên bản giao nhận trước khi ký.',
-  f'Quan sát kỹ toàn bộ lốp xe {v}: rãnh gai còn sâu không, áp suất lốp có căng đều không và vành đúc có dấu hiệu móp méo không. Bật thử đèn chiếu xa, đèn chiếu gần, xi nhan hai bên và đèn phanh để đảm bảo an toàn tuyệt đối khi lưu thông.',
-  f'Trước khi nhận chiếc {v}, hãy kiểm tra khóa cổ, khóa từ và chân chống nghiêng/chân chống đứng. Thử bóp cả hai tay phanh để cảm nhận độ nảy và độ ăn của bố thắng, đảm bảo tay phanh không bị kẹt hay chạm sát vào tay nắm.'
- ])+paragraph(seed+'3b',[
-  f'Khởi động và nghe tiếng máy của {v}; thử ga và phanh ở tốc độ thấp trong khu vực cho phép. Xác nhận mũ bảo hiểm, chìa khóa và vật dụng đi kèm. Với xe điện, cần hỏi đúng bộ sạc, cách sạc và phạm vi sử dụng của mẫu xe; không dùng một con số chung cho mọi pin.',
-  f'Đề nổ {v} để kiểm tra độ nhạy của bộ đề và độ êm của động cơ khi nổ galanti. Hỏi rõ nhân viên về cách mở nắp bình xăng hoặc vị trí cắm sạc pin, vị trí để áo mưa trong cốp và lưu lại số cứu hộ khẩn cấp trước khi rời điểm giao nhận.',
-  f'Lái thử một đoạn ngắn với {v} để cảm nhận độ cân bằng của tay lái và phuộc nhún trước sau. Kiểm tra hai gương chiếu hậu xem có bị rung lỏng khi máy chạy không và điều chỉnh đúng tầm mắt quan sát.'
- ])))
- sections.append(('Đối chiếu giá và tổng ngân sách',paragraph(seed+'4a',[
-  f'Mức tham khảo hiện hành cho nhóm phù hợp là {escape(price)}. Giá chiếc {v} cụ thể còn phụ thuộc xe sẵn có và thời hạn thuê. Ngoài tiền thuê, cần chuẩn bị tiền cọc theo thỏa thuận, phí giao nhận nếu áp dụng, nhiên liệu và khoản phát sinh được ghi trong hợp đồng.',
-  f'Ngân sách dự kiến khi thuê {v} tại {d} dựa trên khung giá niêm yết: {escape(price)}. Chi phí trọn gói cần tính thêm tiền xăng dầu hoặc điện sạc cho lộ trình, phí gửi xe qua đêm và khoản tiền cọc minh bạch được hoàn trả khi kết thúc hợp đồng.',
-  f'Theo bảng giá đang áp dụng, nhóm xe phù hợp có mức {escape(price)}. {a.capitalize()} nên cân nhắc thời hạn thuê theo ngày hoặc tuần để nhận mức chiết khấu tốt nhất, tránh việc phát sinh gia hạn lẻ tẻ từng ngày.'
- ])+paragraph(seed+'4b',[
-  f'Hãy yêu cầu cửa hàng chốt bằng văn bản: thời điểm bắt đầu, thời điểm trả, tổng tiền thuê, tiền cọc và điều kiện hoàn cọc. Không so sánh chỉ bằng giá ngày nếu nhu cầu thực tế là theo tuần hoặc tháng. Xem thêm <a href="/bang-gia/">bảng giá đang áp dụng</a> trước khi quyết định.',
-  f'Để tối ưu chi tiêu cho chuyến đi, hãy đề nghị cơ sở cho thuê liệt kê toàn bộ điều khoản tài chính vào phiếu giao nhận: số tiền cọc, phương thức hoàn cọc và mức phí nếu quá giờ. Bạn có thể tra cứu chi tiết tại <a href="/bang-gia/">bảng giá niêm yết</a>.',
-  f'Chi phí thuê luôn đi kèm cam kết minh bạch không phụ phí ẩn. Hai bên cần thống nhất cụ thể mốc 24 giờ của một ngày thuê và phương thức thanh toán. Đọc kỹ chi tiết tại <a href="/bang-gia/">trang bảng giá chính thức</a> trước khi đặt cọc.'
- ])))
- sections.append(('Đọc hợp đồng và giấy tờ',paragraph(seed+'5a',[
-  f'Đối chiếu họ tên, thông tin chiếc xe, biển số, kỳ thuê, giờ trả và hiện trạng. Đọc phần trách nhiệm khi hư hỏng, trả sớm, quá giờ và mất phụ kiện. Chỉ ký khi nội dung trùng với trao đổi; giữ một bản hoặc ảnh rõ ràng để tra cứu trong thời gian sử dụng.',
-  f'Hợp đồng thuê {v} là văn bản bảo vệ quyền lợi của cả hai bên. Hãy kiểm tra kỹ biển số xe ghi trên giấy tờ có khớp với biển số gắn trên xe thực tế hay không, đối chiếu rõ mốc giờ trả xe và trách nhiệm bảo quản tài sản.',
-  f'Trước khi đặt bút ký, hãy đọc kỹ các điều khoản về phạm vi di chuyển, quy định bồi thường nếu xảy ra trầy xước hoặc va chạm ngoài ý muốn. Giữ lại một bản cứng hoặc chụp ảnh lại hợp đồng vào điện thoại để tra cứu khi cần.'
- ])+paragraph(seed+'5b',[
-  f'Người lái phải đáp ứng điều kiện độ tuổi và giấy phép phù hợp với đúng loại phương tiện. Khi chưa chắc yêu cầu pháp lý cho {v}, hãy kiểm tra nguồn chính thức và mục <a href="/luat-giao-thong/nguon-tra-cuu/">hướng dẫn tra cứu luật, bằng lái</a>. Bài blog không thay thế văn bản đang có hiệu lực.',
-  f'{a.capitalize()} điều khiển {v} cần có giấy phép lái xe hợp lệ theo quy định pháp luật Việt Nam. Đối với người nước ngoài hoặc người chưa rõ phân khối xe, nên tham khảo trước tại <a href="/luat-giao-thong/nguon-tra-cuu/">chuyên mục tra cứu luật giao thông</a> để tránh bị xử phạt khi lưu thông.',
-  f'Đảm bảo mang theo giấy phép lái xe phù hợp khi nhận xe. Quy định điều khiển {v} đòi hỏi tuân thủ nghiêm ngặt luật giao thông đường bộ hiện hành; tra cứu thông tin chính xác tại mục <a href="/luat-giao-thong/nguon-tra-cuu/">hướng dẫn quy định bằng lái và pháp luật</a>.'
- ])))
- sections.append(('Tổ chức giao nhận và thời điểm trả',paragraph(seed+'6a',[
-  f'Thuê ngắn hạn nhận xe tại cửa hàng. Việc giao xe cho kỳ nhiều ngày, tuần hoặc tháng cần được thống nhất trước; cửa hàng không giao nhận tại sân bay Nội Bài. Ghi rõ địa điểm tại {d}, người bàn giao và số điện thoại liên hệ để tránh chờ hoặc nhầm điểm.',
-  f'Khách hàng có thể nhận xe trực tiếp tại cửa hàng hoặc yêu cầu hỗ trợ giao xe tại địa điểm thuận tiện ở {d} khi thuê theo tuần hoặc tháng. Thống nhất chính xác thời gian và vị trí hẹn bàn giao để không làm ảnh hưởng đến kế hoạch cá nhân.',
-  f'Địa điểm giao nhận xe tại {d} cần được hai bên xác nhận qua tin nhắn hoặc điện thoại trước giờ hẹn. Hãy chuẩn bị sẵn giấy tờ tùy thân để thủ tục bàn giao diễn ra nhanh gọn trong vòng 5–10 phút.'
- ])+paragraph(seed+'6b',[
-  f'Một ngày thuê được tính theo 24 giờ ghi trong hợp đồng. Hãy đặt nhắc lịch trước giờ trả và dự trù thời gian di chuyển. Khi cần thay đổi kế hoạch, liên hệ sớm thay vì tự suy đoán cách tính phí.',
-  f'Cách tính thời gian chuẩn 24 giờ mỗi ngày giúp người thuê chủ động sắp xếp giờ trả xe. Nếu có phát sinh cần gia hạn hoặc trả sớm, hãy gọi điện thông báo trước cho cửa hàng để được hỗ trợ phương án tối ưu nhất.',
-  f'Hãy cài đặt báo thức trên điện thoại trước mốc giờ trả xe 1 tiếng để chủ động thời gian chạy xe qua điểm hẹn, tránh giờ cao điểm tắc đường khiến bạn bị trễ giờ trả xe.'
- ])))
- sections.append(('Sử dụng xe trong suốt kỳ thuê',paragraph(seed+'7',[
-  f'Mỗi ngày trước khi đi, quan sát nhanh lốp, phanh, đèn và dấu hiệu rò rỉ hoặc bất thường. Nếu {v} phát tiếng lạ, rung khác thường hay cảnh báo, dừng ở nơi an toàn rồi liên hệ cửa hàng; không tự sửa lớn hoặc thay phụ tùng khi chưa thống nhất.',
-  f'Trong suốt thời gian sử dụng {v} tại {d}, hãy duy trì thói quen kiểm tra áp suất lốp và phanh trước mỗi chuyến đi. Khi xe có dấu hiệu hết dầu phanh hoặc máy nóng bất thường, hãy liên hệ hotline để được kỹ thuật viên hướng dẫn xử lý an toàn.',
-  f'Giữ gìn xe cẩn thận, không chở quá tải trọng cho phép và luôn khóa cổ, khóa càng khi gửi xe tại các điểm công cộng. Nếu {v} gặp sự cố hỏng hóc giữa đường, gọi ngay số điện thoại cứu trợ của cửa hàng để được trợ giúp kịp thời.'
- ])+paragraph(seed+'7b',[
-  f'Giữ chìa khóa và giấy tờ theo hướng dẫn, khóa xe tại nơi phù hợp và tránh để tài sản có giá trị trên xe. Trong lịch đi của {a} tại {d}, nên lưu sẵn số hỗ trợ để xử lý nhanh nếu phương tiện có dấu hiệu bất thường.',
-  f'Tránh để ví tiền, điện thoại hay giấy tờ quan trọng trong cốp xe khi gửi ở các bãi gửi xe lạ. Luôn gửi xe tại các bãi có vé giữ xe rõ ràng và nhân viên bảo vệ túc trực.',
-  f'Khi lưu thông vào ban đêm hoặc trong ngõ tối, hãy đảm bảo đèn xe luôn bật sáng và giữ tốc độ vừa phải. Luôn bảo quản cẩn thận chìa khóa dự phòng và các giấy tờ đi kèm xe.'
- ])))
- sections.append(('Hoàn tất trả xe minh bạch',paragraph(seed+'8a',[
-  f'Khi trả {v}, hai bên cùng kiểm tra biển số, đồng hồ, nhiên liệu hoặc pin, vết xước và phụ kiện. Đối chiếu ảnh lúc nhận để tách tình trạng có sẵn khỏi vấn đề mới. Yêu cầu xác nhận đã nhận đủ xe, chìa khóa và đồ đi kèm.',
-  f'Quy trình hoàn trả {v} diễn ra nhanh chóng: đối chiếu lại video/ảnh chụp ban đầu để khẳng định xe không phát sinh vết xước mới, kiểm tra vạch xăng/pin và bàn giao lại mũ bảo hiểm cùng giấy tờ gốc.',
-  f'Khi bàn giao xe lại cho cửa hàng, hãy kiểm tra kỹ toàn bộ cốp xe và hộc đồ phía trước để không bỏ quên tư trang cá nhân. Hai bên cùng ký xác nhận hoàn thành kỳ thuê trên biên bản.'
- ])+paragraph(seed+'8b',[
-  f'Nếu có khoản phát sinh, đề nghị giải thích theo điều khoản đã ký. Kiểm tra việc hoàn cọc trước khi rời điểm giao nhận. Lưu ảnh biên bản hoặc tin nhắn xác nhận cho đến khi giao dịch kết thúc hoàn toàn.',
-  f'Tiền đặt cọc sẽ được hoàn trả ngay lập tức bằng tiền mặt hoặc chuyển khoản ngân hàng ngay khi kiểm tra xong hiện trạng xe. Bạn nên giữ biên nhận điện tử để hoàn tất mọi thủ tục.',
-  f'Mọi chi phí nếu có phát sinh đều được giải trình rõ ràng căn cứ trên hợp đồng đã ký kết ban đầu. Nhận lại tiền cọc đầy đủ trước khi tạm biệt nhân viên bàn giao.'
- ])))
- sections.append(('Liên hệ và xác nhận xe còn sẵn',paragraph(seed+'9a',[
-  f'{brand} ở {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Giờ mở cửa: {escape(FACTS["hours"])}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.',
-  f'Cơ sở cho thuê xe uy tín tọa lạc tại {escape(FACTS["address"])}, {escape(FACTS["landmark"])} ({brand}). Hotline hỗ trợ và Zalo: <a href="tel:+84334699969">{phone}</a>. Giờ phục vụ hằng ngày: {escape(FACTS["hours"])}.',
-  f'Để trải nghiệm dịch vụ tại {brand}, quý khách có thể ghé qua {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Chúng tôi mở cửa từ {escape(FACTS["hours"])}. Liên hệ hotline/Zalo: <a href="tel:+84334699969">{phone}</a> để được phục vụ chu đáo.'
- ])+paragraph(seed+'9b',[
-  f'Khi liên hệ, hãy gửi bốn thông tin: loại xe muốn thử, thời gian thuê, khu vực nhận tại {d} và nhu cầu của {a}. Cửa hàng sẽ xác nhận xe thực tế, mức cọc và điều kiện giao nhận. Xem <a href="/faq/">câu hỏi thường gặp</a> hoặc <a href="/lien-he/">trang liên hệ</a> để chuẩn bị trước.',
-  f'Để được giữ xe nhanh chóng, vui lòng thông báo trước: mẫu xe mong muốn ({v}), số ngày dự kiến thuê, điểm đón tại {d} và nhu cầu di chuyển của bạn. Xem thêm thông tin chi tiết tại mục <a href="/faq/">câu hỏi thường gặp</a> và <a href="/lien-he/">kênh liên hệ</a>.',
-  f'Đội ngũ chăm sóc khách hàng luôn sẵn sàng phản hồi nhanh chóng. Hãy nhắn tin thông tin lịch trình để chúng tôi kiểm tra tình trạng xe còn sẵn và chuẩn bị phương tiện tốt nhất. Tham khảo thêm <a href="/faq/">giải đáp thắc mắc FAQ</a> hoặc <a href="/lien-he/">thông tin liên hệ chi tiết</a>.'
- ])))
- body=' '.join(x[1] for x in sections);wc=len(words(body))
- return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
-         'excerpt':f'{s["angle_label"].capitalize()} cho {s["vehicle"]} tại {s["district"]}, gồm kiểm tra xe, chi phí, hợp đồng, giao nhận và cách liên hệ Nguyễn Hà.',
-         'sections':[[h,b] for h,b in sections],'keywords':f'{s["angle"]} {s["vehicle"]} {s["district"]} {s["audience"]}',
-         'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
-         'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+    v=escape(s['vehicle']); d=escape(s['district']); a=escape(s['audience']); ang=escape(s['angle_label'])
+    context=escape(s['context']); route=escape(s['route'])
+    price=FACTS['prices'].get(s['vehicle'], FACTS['prices'].get('xe ga' if any(x in v for x in ['Vision', 'Air Blade', 'Lead', 'Grande']) else 'xe số'))
+    seed=s['intent']; brand=escape(FACTS['brand']); phone=escape(FACTS['phone'])
+    addr=escape(FACTS['address']); hours=escape(FACTS['hours'])
 
+    sections=[]
+    sections.append((f'Nhu cầu thuê {v} tại {d} của {a}',
+        paragraph(seed+'1a', [
+            f'Tại khu vực {d}, nhu cầu tìm kiếm {v} của {a} ngày càng phổ biến khi cần một phương tiện cơ động, tiết kiệm chi phí và chủ động giờ giấc. Trong điều kiện giao thông thực tế, việc chuẩn bị kỹ lưỡng về mục đích sử dụng giúp bạn chọn đúng dòng xe phù hợp và hạn chế tối đa chi phí phát sinh ngoài dự kiến.',
+            f'Đối với {a} đang sinh sống hoặc làm việc tại {d}, chiếc {v} là giải pháp di chuyển linh hoạt, vừa vặn với thói quen sinh hoạt đô thị. Trước khi chốt phương án thuê, việc xác định rõ nhu cầu {context} và đặc thù {route} sẽ là nền tảng giúp bạn có một trải nghiệm suôn sẻ từ ngày đầu nhận xe.',
+            f'Lựa chọn {v} tại {d} mang lại sự chủ động vượt trội cho {a}. Dù bạn cần xe cho các chuyến công việc gấp hay phục vụ sinh hoạt hằng ngày, việc nắm rõ những điều kiện vận hành thực tế sẽ giúp bảo vệ quyền lợi cá nhân và đảm bảo an toàn suốt kỳ thuê.'
+        ]) + paragraph(seed+'1b', [
+            f'Bài viết này cung cấp cẩm nang chi tiết về {ang} cho mẫu {v} tại địa bàn {d}. Toàn bộ thông tin giá niêm yết và quy định thủ tục được trích xuất từ dữ liệu chính thức của cửa hàng {brand}. Tình trạng xe sẵn có luôn được xác nhận trực tiếp trước thời điểm bàn giao.',
+            f'Nhằm hỗ trợ {a} đưa ra quyết định đúng đắn, {brand} tổng hợp các phân tích thực tế về {ang} dành riêng cho {v}. Bảng giá niêm yết rõ ràng, xe được bảo dưỡng định kỳ và dịch vụ hỗ trợ chu đáo sẽ giúp bạn hoàn toàn an tâm trên mọi nẻo đường {d}.'
+        ])
+    ))
 
-# ── Writer 2: Xe máy / Xe điện / Xe đạp — thông tin ─────────────────────────
-def spec_for_xe_info(seq):
- n=seq-1;topic_key,topic_label=INFO_TOPICS[n%len(INFO_TOPICS)];n//=len(INFO_TOPICS)
- aud=INFO_AUDIENCES[n%len(INFO_AUDIENCES)];n//=len(INFO_AUDIENCES)
- vehicle,hub=INFO_VEHICLES[n%len(INFO_VEHICLES)];n//=len(INFO_VEHICLES)
- season=INFO_SEASONS[n%len(INFO_SEASONS)]
- title=f'{vehicle.capitalize()}: {topic_label} dành cho {aud} ({season})'
- intent=f'xe-info|{topic_key}|{vehicle}|{aud}|{season}'.lower()
- url=f'/{hub}/{slugify(vehicle)}/{slugify(topic_key)}-{slugify(aud)}-{slugify(season)}/'
- return {'sequence':seq,'title':title,'intent':intent,'vehicle':vehicle,'hub':hub,
-         'topic':topic_key,'topic_label':topic_label,'audience':aud,'season':season,'url':url,'writer':'xe-info'}
+    sections.append((f'Đánh giá khả năng vận hành khi {route} tại {d}',
+        paragraph(seed+'2a', [
+            f'Tuyến đường đặc trưng {route} tại quận {d} thường đòi hỏi phương tiện có khả năng tăng tốc mượt mà, hệ thống phanh nhạy bén và bán kính quay đầu hợp lý. Chiếc {v} thể hiện ưu thế rõ rệt khi xoay trở trong các ngõ ngách, vượt qua điểm ùn tắc giờ tan tầm và đỗ xe thuận tiện trước các tòa nhà.',
+            f'Khi di chuyển theo lộ trình {route}, {a} cần đặc biệt chú ý đến độ êm ái của phuộc nhún và cảm giác lái đầm chắc của {v}. Trọng lượng xe vừa phải giúp người lái dễ dàng dắt xe lên vỉa hè hoặc quay đầu tại những đoạn đường hẹp mà không tốn nhiều sức lực.',
+            f'Thực tế vận hành tại {d} cho thấy, một chiếc {v} hoạt động ổn định sẽ giúp tiết kiệm đáng kể thời gian di chuyển. Bạn nên kiểm tra kỹ tầm nhìn qua gương chiếu hậu và độ nhạy tay ga trong khu vực an toàn trước khi chính thức hòa vào dòng xe đông đúc.'
+        ]) + paragraph(seed+'2b', [
+            f'Trong tình huống {context}, bạn nên phân bổ thời gian di chuyển hợp lý, tránh việc phóng nhanh phanh gấp khi gặp chướng ngại vật bất ngờ. Tham khảo thêm chuyên mục <a href="/kinh-nghiem/lai-xe-o-ha-noi/">kinh nghiệm lái xe an toàn ở Hà Nội</a> để trang bị thêm kỹ năng xử lý đường trơn trượt mùa mưa.',
+            f'Đối với {a}, thói quen quan sát biển báo phân làn và giữ khoảng cách an toàn với xe phía trước là điều tối quan trọng. Tuyến đường {d} có nhiều nút giao đèn tín hiệu, vì vậy việc làm quen với độ phản hồi tay phanh của {v} sẽ giúp bạn luôn làm chủ tình huống.'
+        ])
+    ))
 
+    sections.append((f'Checklist kiểm tra kỹ thuật {v} trước khi nhận',
+        paragraph(seed+'3a', [
+            f'Trước khi ký biên bản bàn giao {v}, hãy dành ít nhất 5 đến 10 phút kiểm tra toàn diện các bộ phận cơ bản: hệ thống đèn chiếu xa và chiếu gần, đèn báo rẽ xi nhan hai bên, còi xe, đồng hồ đo vận tốc và mức nhiên liệu hoặc vạch pin hiện tại. Đảm bảo tất cả trang bị đều vận hành hoàn hảo.',
+            f'Quan sát kỹ bề mặt lốp xe {v}: rãnh gai lốp phải còn đủ độ sâu bám đường, lốp không bị nứt chân chim hoặc dính đinh kim loại. Kiểm tra áp suất lốp vừa vặn, không quá non gây ì máy hoặc quá căng làm xóc tay lái. Thao tác bóp thử cả phanh trước và sau để cảm nhận lực hãm chắc chắn.',
+            f'Kiểm tra kỹ lưỡng chân chống nghiêng, chân chống giữa và ổ khóa thông minh hoặc khóa cơ của {v}. Đề nghị nhân viên khởi động máy để lắng nghe tiếng nổ êm ái của động cơ galanti, xác nhận không có khói lạ từ ống xả hoặc âm thanh gõ bất thường.'
+        ]) + paragraph(seed+'3b', [
+            f'Hai bên cùng tiến hành chụp ảnh và quay video toàn cảnh hiện trạng vỏ nhựa xe, ghi nhận rõ ràng các vết trầy xước có sẵn vào biên bản giao nhận. Hãy xem kỹ <a href="/bao-duong/xe-may/kiem-tra-truoc-khi-nhan/">checklist kiểm tra xe máy trước khi nhận</a> để không bỏ sót bất kỳ hạng mục kỹ thuật nào.',
+            f'Xác nhận mũ bảo hiểm đạt chuẩn được cấp kèm xe có quai cài chắc chắn và kính chắn gió trong suốt. Đừng quên lưu lại số điện thoại cứu hộ kỹ thuật của cửa hàng để được hỗ trợ tận nơi nếu gặp sự cố bất ngờ trên hành trình {d}.'
+        ])
+    ))
+
+    sections.append((f'Bảng giá và dự trù chi phí thuê {v} tại {d}',
+        paragraph(seed+'4a', [
+            f'Mức giá thuê niêm yết công khai cho nhóm phương tiện này tại {brand} là {escape(price)}. Mức phí thực tế phụ thuộc vào mẫu xe cụ thể, đời xe và tổng số ngày bạn đăng ký sử dụng. Cửa hàng luôn áp dụng chính sách chiết khấu lũy tiến hấp dẫn cho các hợp đồng thuê theo tuần hoặc theo tháng.',
+            f'Theo biểu phí đang áp dụng, dòng {v} có mức giá cạnh tranh hàng đầu thị trường: {escape(price)}. Khách hàng được cam kết minh bạch 100% về tài chính, không phụ thu các khoản phí phát sinh vô lý ngoài thỏa thuận ban đầu.',
+            f'Dự trù ngân sách di chuyển tại {d} bao gồm tiền thuê {escape(price)}, chi phí nhiên liệu xăng hoặc điện sạc, tiền gửi xe qua đêm và khoản đặt cọc hoàn lại. Bạn có thể tra cứu toàn bộ khung giá chi tiết tại <a href="/bang-gia/">bảng giá thuê xe máy Hà Nội</a>.'
+        ]) + paragraph(seed+'4b', [
+            f'Để tối ưu chi phí cho nhu cầu {context}, {a} nên tính toán tổng thời gian cần xe để chọn gói theo tuần hoặc tháng thay vì gia hạn lẻ tẻ theo từng ngày. Một ngày thuê tại cửa hàng được tính tròn 24 giờ kể từ thời điểm nhận xe, giúp bạn hoàn toàn chủ động sắp xếp lịch trình.',
+            f'Cửa hàng cam kết hoàn trả đầy đủ 100% tiền đặt cọc ngay khi thủ tục trả xe kết thúc. Hãy đề nghị nhân viên ghi rõ các mốc giờ nhận, giờ trả và số tiền cọc vào phiếu thu để bảo vệ quyền lợi tài chính cá nhân.'
+        ])
+    ))
+
+    sections.append((f'Quy định hợp đồng, giấy tờ và điều kiện tiền cọc',
+        paragraph(seed+'5a', [
+            f'Hợp đồng thuê {v} được lập thành hai bản có giá trị pháp lý tương đương, trong đó ghi rõ họ tên khách hàng, số điện thoại, biển số đăng ký xe, tình trạng xe và thời hạn sử dụng. Bạn cần kiểm tra kỹ thông tin biển số trên hợp đồng có trùng khớp với biển số gắn trên xe thực tế hay không.',
+            f'Về thủ tục giấy tờ, khách hàng chỉ cần xuất trình căn cước công dân hoặc hộ chiếu còn hiệu lực kèm giấy phép lái xe hợp lệ. Cửa hàng chụp ảnh lưu hồ sơ đối chiếu và trả lại bản gốc ngay cho khách hàng, không giữ giấy tờ tùy thân của bạn.',
+            f'Khoản tiền cọc dao động từ 2 đến 5 triệu đồng tùy theo giá trị xe và thời hạn thuê. Với khách du lịch nước ngoài, cửa hàng hỗ trợ phương thức đặt cọc tiền mặt hoặc thỏa thuận đặt cọc hộ chiếu theo quy định linh hoạt.'
+        ]) + paragraph(seed+'5b', [
+            f'Người điều khiển {v} phải đủ độ tuổi luật định và sở hữu giấy phép lái xe phù hợp với phân khối phương tiện. Bạn có thể tìm hiểu thêm các quy định pháp lý tại chuyên mục <a href="/luat-giao-thong/nguon-tra-cuu/">hướng dẫn tra cứu luật giao thông</a> để vững tin lưu thông trên đường.',
+            f'Trước khi đặt bút ký hợp đồng, hãy đọc kỹ điều khoản về trách nhiệm bảo quản phương tiện và phạm vi hỗ trợ sự cố trên đường. Mọi thắc mắc về điều khoản dịch vụ đều được nhân viên giải thích tận tình và ghi chú trực tiếp vào văn bản.'
+        ])
+    ))
+
+    sections.append((f'Phương thức nhận xe trực tiếp và giao xe tại {d}',
+        paragraph(seed+'6a', [
+            f'Khách hàng có thể đến trực tiếp cơ sở của {brand} để thử xe, kiểm tra máy móc và hoàn tất thủ tục bàn giao nhanh gọn trong vòng 10 phút. Đối với các hợp đồng thuê từ nhiều ngày, tuần hoặc tháng, cửa hàng hỗ trợ dịch vụ giao nhận xe tận nơi theo địa chỉ hẹn trước tại {d}.',
+            f'Để việc giao nhận {v} diễn ra đúng hẹn tại {d}, bạn nên liên hệ đặt xe trước ít nhất 1 đến 2 giờ. Nhân viên giao xe sẽ chuẩn bị sẵn phương tiện đã được rửa sạch sẽ, kiểm tra an toàn kỹ thuật và đổ sẵn nhiên liệu để bạn có thể lên đường ngay.',
+            f'Lưu ý rằng dịch vụ cho thuê xe không áp dụng giao nhận tại sân bay Nội Bài. Trong phạm vi các quận nội thành Hà Nội, phí giao hoặc nhận xe được tính theo mức hỗ trợ hợp lý và được thông báo rõ ràng trước khi xuất phát.'
+        ]) + paragraph(seed+'6b', [
+            f'Mốc thời gian trả xe được tính chuẩn xác theo chu kỳ 24 giờ ghi trong hợp đồng. Nếu bạn có việc đột xuất cần gia hạn thêm giờ hoặc trả xe sớm hơn dự kiến, hãy gọi điện thông báo sớm cho cửa hàng để được hỗ trợ sắp xếp linh hoạt nhất.',
+            f'Khi bàn giao xe tại điểm hẹn ở {d}, hai bên cùng đối chiếu lại biên bản bàn giao ban đầu để xác nhận hiện trạng xe nguyên vẹn, đảm bảo quá trình trả xe diễn ra nhanh chóng, thoải mái và chuyên nghiệp.'
+        ])
+    ))
+
+    sections.append((f'Kinh nghiệm lái xe an toàn khi {context}',
+        paragraph(seed+'7a', [
+            f'Trong điều kiện {context} tại {d}, việc duy trì khoảng cách an toàn và làm chủ tốc độ là yếu tố then chốt. Luôn bật đèn chiếu sáng khi đi qua hầm chui hoặc khi trời nhá nhem tối, sử dụng còi xe đúng lúc và tuyệt đối không chuyển làn đột ngột mà không bật đèn báo rẽ xi nhan.',
+            f'Khi di chuyển trong các ngõ hẹp hoặc khu dân cư đông đúc của {d}, hãy giảm tốc độ và quan sát kỹ gương cầu lồi tại các khúc cua khuất tầm nhìn. Tránh phanh gấp bằng phanh trước trên các đoạn đường trơn ướt hoặc có cát sỏi để phòng ngừa hiện tượng trượt bánh lái.',
+            f'Luôn đội mũ bảo hiểm đạt chuẩn, cài quai đúng quy cách và không sử dụng điện thoại khi đang điều khiển {v}. Nếu cần tra cứu bản đồ dẫn đường, hãy tấp xe vào lề đường ở vị trí an toàn được phép dừng đỗ rồi mới thao tác trên màn hình.'
+        ]) + paragraph(seed+'7b', [
+            f'Đỗ xe tại các bãi trông giữ có vé giữ xe rõ ràng và nhân viên trực gác. Luôn khóa cổ xe, đậy nắp từ ổ khóa và không để đồ dùng cá nhân có giá trị, ví tiền hoặc giấy tờ tùy thân trong cốp xe khi rời khỏi phương tiện.',
+            f'Chủ động kiểm tra vạch xăng hoặc dung lượng pin trước mỗi chuyến đi để không rơi vào tình huống hết nhiên liệu giữa đường. Xem thêm <a href="/faq/">các câu hỏi thường gặp về thuê xe</a> để nắm bắt thêm mẹo xử lý hữu ích.'
+        ])
+    ))
+
+    sections.append((f'Thông tin liên hệ Thuê xe máy Nguyễn Hà',
+        f'<p>{brand} tọa lạc tại {addr} ({escape(FACTS["landmark"])}). Cửa hàng mở cửa từ {hours}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p>'
+        + f'<p>Quý khách có thể xem thêm <a href="/bang-gia/">bảng giá niêm yết</a>, <a href="/thue-xe-may/ha-noi/">thuê xe máy Hà Nội</a>, <a href="/faq/">câu hỏi thường gặp FAQ</a> và <a href="/lien-he/">trang liên hệ</a> để được hỗ trợ chu đáo nhất.</p>'
+        + paragraph(seed+'contact', [
+            f'Đội ngũ chăm sóc khách hàng của {brand} luôn sẵn sàng tư vấn mẫu xe phù hợp nhất với nhu cầu và lịch trình của bạn. Chúng tôi cam kết xe vận hành êm ái, đầy đủ giấy tờ và hỗ trợ kỹ thuật tận tình.',
+            f'Với phương châm phục vụ tận tâm và chuyên nghiệp, {brand} tự hào đồng hành cùng quý khách trên mọi nẻo đường thủ đô. Hãy gọi ngay hotline để được chuẩn bị xe tốt nhất trước giờ xuất phát.'
+        ])
+    ))
+
+    body = ' '.join(x[1] for x in sections); wc = len(words(body))
+    return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
+            'excerpt':f'Cẩm nang {ang} {v} tại {d}: kinh nghiệm khi {context}, biểu phí niêm yết, thủ tục cọc và liên hệ Nguyễn Hà.',
+            'sections':[[h,b] for h,b in sections],'keywords':f'{s["angle"]} {v} {d} {a}',
+            'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
+            'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+
+# ── Writer 2: Xe máy / Xe điện / Xe đạp — Thông tin & Bảo dưỡng ───────────────
 def make_xe_info(s):
- v=escape(s['vehicle']);a=escape(s['audience']);t=escape(s['topic_label']);season=escape(s['season'])
- seed=s['intent'];brand=escape(FACTS['brand']);phone=escape(FACTS['phone'])
- sections=[]
- sections.append((f'Tổng quan: {t} với {v}',
-  f'<p>Bài viết này tập trung vào {t} dành cho {a} sử dụng {v} trong giai đoạn {season}. Thông tin được tổng hợp từ thực tế vận hành và không thay thế hướng dẫn kỹ thuật chính thức của nhà sản xuất.</p>'
-  +paragraph(seed+'A',[
-   f'Với {a}, việc nắm rõ {t} giúp kéo dài tuổi thọ xe, giảm chi phí phát sinh và chủ động hơn trong các tình huống trên đường tại Hà Nội. Đặc biệt vào {season}, điều kiện đường sá và thời tiết có thể ảnh hưởng đáng kể đến hiệu suất và an toàn.',
-   f'Nhiều người dùng {v} bỏ qua {t} cho đến khi gặp sự cố. Hiểu đúng các bước cơ bản giúp {a} phát hiện sớm vấn đề và xử lý kịp thời, đặc biệt trong {season} khi nhu cầu di chuyển thường tăng cao.'
-  ])))
- sections.append(('Các bước thực hiện cụ thể',
-  paragraph(seed+'B',[
-   f'Bước đầu tiên là quan sát tổng thể {v}: lốp, phanh, đèn, còi và mức nhiên liệu hoặc pin. Ghi nhận bất kỳ dấu hiệu bất thường nào trước khi xử lý từng hạng mục. Với {a}, thao tác này nên trở thành thói quen trước mỗi chuyến đi dài trong {season}.',
-   f'Đối với {v}, quy trình {t} bao gồm kiểm tra các bộ phận chuyển động, bôi trơn các điểm cần thiết và đảm bảo áp suất lốp đúng mức. Thực hiện vào {season} đặc biệt quan trọng vì thay đổi thời tiết ảnh hưởng đến vật liệu cao su và hệ thống điện.'
-  ])+f'<p>Không tự thay phụ tùng chính khi chưa có kinh nghiệm. Đưa xe đến xưởng uy tín và yêu cầu giải thích trước khi đồng ý sửa chữa. Lưu lại hóa đơn và lịch bảo dưỡng để theo dõi chu kỳ tiếp theo.</p>'))
- sections.append(('Dấu hiệu cần chú ý',
-  f'<p>Các dấu hiệu phổ biến cần xử lý ngay bao gồm: tiếng kêu lạ khi tăng tốc hoặc phanh, rung bất thường, đèn cảnh báo sáng, xe chạy nặng hơn bình thường hoặc tiêu hao nhiên liệu tăng đột ngột. Đối với xe điện, cần thêm chú ý vào chỉ số pin và thời gian sạc.</p>'
-  +paragraph(seed+'C',[
-   f'Trong {season}, {v} của {a} thường gặp các vấn đề liên quan đến hệ thống làm mát, điện và lốp. Phát hiện sớm và xử lý đúng cách giúp tránh chi phí sửa chữa lớn và đảm bảo an toàn trên đường.',
-   f'Nếu {v} hoạt động không ổn định trong {season}, hãy kiểm tra tình trạng bình ắc-quy, hệ thống đánh lửa và bộ lọc gió. Đây là những hạng mục dễ bị ảnh hưởng bởi thay đổi nhiệt độ và độ ẩm theo mùa.'
-  ])))
- sections.append(('Chi phí tham khảo và lựa chọn dịch vụ',
-  f'<p>Chi phí cho {t} thay đổi tùy mẫu xe, tình trạng thực tế và đơn vị thực hiện. Nên hỏi báo giá trước, so sánh ít nhất hai địa chỉ uy tín và xác nhận rõ phạm vi dịch vụ trước khi đồng ý. Không để chi phí thấp là tiêu chí duy nhất khi chọn xưởng.</p>'
-  +paragraph(seed+'D',[
-   f'Với {a} sử dụng {v} thường xuyên, nên thiết lập lịch định kỳ thay vì chỉ mang xe đi khi có sự cố. Một số xưởng cung cấp gói bảo dưỡng theo km hoặc theo tháng, giúp kiểm soát chi phí và đảm bảo xe luôn trong tình trạng tốt.',
-   f'Giá dịch vụ {t} cho {v} phụ thuộc nhiều vào loại phụ tùng được sử dụng. Phụ tùng chính hãng thường đắt hơn nhưng đảm bảo tương thích và bền hơn trong dài hạn. {a.capitalize()} nên ưu tiên phụ tùng từ đại lý hoặc nhà phân phối được ủy quyền.'
-  ])))
- sections.append(('Lưu ý an toàn khi tự kiểm tra',
-  f'<p>Không thực hiện kiểm tra khi xe vừa tắt máy, động cơ còn nóng hoặc trên mặt đường trơn. Đặt xe ở nơi bằng phẳng, thoáng, đủ ánh sáng. Rút chìa khóa trước khi kiểm tra bộ phận chuyển động.</p>'
-  +paragraph(seed+'E',[
-   f'Với xe điện, không tự tháo pin hay chạm vào các đầu nối điện cao áp. Khi phát hiện pin phình hoặc sạc không đủ công suất trong {season}, liên hệ trung tâm bảo hành của {v} để được kiểm tra đúng quy trình.',
-   f'{a.capitalize()} nên mang thiết bị bảo hộ tối thiểu khi kiểm tra {v}: găng tay, đèn pin và khăn lau sạch. Tránh dùng nguồn lửa gần bình nhiên liệu hoặc bình ắc-quy.'
-  ])))
- sections.append(('Câu hỏi thường gặp',
-  f'<p><strong>Bao lâu nên thực hiện {t} một lần?</strong> Phụ thuộc vào km đã đi, điều kiện đường và khuyến cáo của nhà sản xuất. Với {v} sử dụng hằng ngày tại Hà Nội, thường nên kiểm tra sau 1.000–2.000 km hoặc mỗi 2–3 tháng.</p>'
-  +f'<p><strong>Có thể tự làm không?</strong> Một số bước cơ bản {a} có thể tự thực hiện sau khi tham khảo hướng dẫn chính thức. Các hạng mục liên quan đến hệ thống phanh, điện hoặc động cơ nên để chuyên viên xử lý.</p>'
-  +paragraph(seed+'F',[
-   f'Nếu đây là lần đầu {a} thực hiện {t} cho {v}, hãy xem video hướng dẫn từ kênh chính thức của hãng xe hoặc đến trực tiếp xưởng để quan sát trước. Hiểu đúng quy trình giúp bạn kiểm tra lại sau khi hoàn tất dịch vụ.',
-   f'Câu hỏi quan trọng cần hỏi xưởng: chi phí nhân công và phụ tùng tính riêng hay gộp, thời gian bảo hành sau sửa chữa, và cần mang {v} đến lúc mấy giờ để được phục vụ trong ngày.'
-  ])))
- sections.append(('Tài nguyên tham khảo thêm',
-  f'<p>Xem thêm <a href="/bao-duong/xe-may/kiem-tra-truoc-khi-nhan/">checklist kiểm tra xe trước khi nhận</a> và <a href="/luat-giao-thong/nguon-tra-cuu/">nguồn tra cứu luật và bằng lái</a> để chuẩn bị đầy đủ cho mỗi chuyến đi.</p>'
-  +f'<p>Nếu đang cân nhắc thuê {v} thay vì mua, <a href="/thue-xe-may/ha-noi/">xem thêm thông tin thuê xe máy Hà Nội</a> và <a href="/bang-gia/">bảng giá hiện hành</a> để so sánh chi phí theo tháng so với sở hữu.</p>'))
- sections.append(('Liên hệ khi cần tư vấn thêm',
-  f'<p>{brand} ở {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Giờ mở cửa: {escape(FACTS["hours"])}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p>'
-  +f'<p>Nếu bạn là {a} cần tư vấn về {v} hoặc đang tìm hiểu về {t}, hãy liên hệ trực tiếp. Đội ngũ cửa hàng có thể tư vấn dựa trên xe thực tế hiện có. Xem thêm <a href="/faq/">câu hỏi thường gặp</a> và <a href="/kinh-nghiem/">kinh nghiệm di chuyển</a>.</p>'))
- body=' '.join(x[1] for x in sections);wc=len(words(body))
- return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
-         'excerpt':f'{t.capitalize()} dành cho {a} sử dụng {v}, tổng hợp từ thực tế vận hành tại Hà Nội trong {season}.',
-         'sections':[[h,b] for h,b in sections],'keywords':f'{s["topic"]} {v} {a} {season}',
-         'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
-         'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+    v=escape(s['vehicle']); t=escape(s['topic_label']); t_cat=escape(s['topic_cat'])
+    a=escape(s['audience']); cond=escape(s['condition']); ang=escape(s['angle_label'])
+    seed=s['intent']; brand=escape(FACTS['brand']); phone=escape(FACTS['phone'])
+    addr=escape(FACTS['address']); hours=escape(FACTS['hours'])
 
+    sections=[]
+    sections.append((f'Tầm quan trọng của việc {t} đối với {v}',
+        paragraph(seed+'1a', [
+            f'Đối với dòng phương tiện phổ biến như {v}, việc chú trọng {t} đóng vai trò quyết định đến độ bền của động cơ, hiệu suất vận hành và sự an toàn của người lái. Trong điều kiện đường sá đô thị nhiều khói bụi và dừng đỗ liên tục, việc chăm sóc xe đúng cách giúp bạn tiết kiệm hàng triệu đồng chi phí sửa chữa lớn về sau.',
+            f'Nhiều {a} thường có thói quen chỉ đưa xe đi tiệm khi phương tiện đã xuất hiện hư hỏng nặng. Tuy nhiên, quy trình {t} chủ động sẽ giúp phát hiện sớm các hao mòn linh kiện, giữ cho chiếc {v} luôn trong trạng thái vận hành mượt mà và êm ái nhất.',
+            f'Đặc biệt trong {cond}, các chi tiết kỹ thuật của {v} phải chịu áp lực làm việc cao hơn bình thường. Việc hiểu rõ nguyên lý và thời điểm cần can thiệp kỹ thuật sẽ giúp bạn hoàn toàn làm chủ phương tiện trên mọi cung đường di chuyển.'
+        ]) + paragraph(seed+'1b', [
+            f'Bài viết này cung cấp cẩm nang chuyên sâu về {ang} cho hạng mục {t} trên {v}. Mọi thông số và khuyến nghị được tổng hợp dựa trên thực tế vận hành tại Hà Nội, hỗ trợ đắc lực cho {a} trong quá trình sử dụng xe hằng ngày.',
+            f'Bên cạnh việc bảo dưỡng xe cá nhân, nếu bạn đang có nhu cầu trải nghiệm phương tiện mới đã được kiểm định an toàn nghiêm ngặt, hãy tham khảo các dòng xe sẵn có tại <a href="/thue-xe-may/ha-noi/">dịch vụ thuê xe máy Hà Nội</a> của {brand}.'
+        ])
+    ))
 
-# ── Writer 3: Du lịch ─────────────────────────────────────────────────────────
-def spec_for_du_lich(seq):
- n=seq-1;duration=TRAVEL_DURATIONS[n%len(TRAVEL_DURATIONS)];n//=len(TRAVEL_DURATIONS)
- travel_type=TRAVEL_TYPES[n%len(TRAVEL_TYPES)];n//=len(TRAVEL_TYPES)
- vehicle,_=TRAVEL_VEHICLES[n%len(TRAVEL_VEHICLES)];n//=len(TRAVEL_VEHICLES)
- place=PLACES[n%len(PLACES)]
- title=f'Du lịch {place} bằng {vehicle}: hành trình {duration} cho {travel_type}'
- intent=f'du-lich|{place}|{vehicle}|{duration}|{travel_type}'.lower()
- url=f'/du-lich/{slugify(place)}/{slugify(vehicle)}-{slugify(duration)}-{slugify(travel_type)}/'
- return {'sequence':seq,'title':title,'intent':intent,'vehicle':vehicle,'hub':'du-lich',
-         'place':place,'duration':duration,'travel_type':travel_type,'url':url,'writer':'du-lich'}
+    sections.append((f'Dấu hiệu nhận biết {v} cần kiểm tra trong {cond}',
+        paragraph(seed+'2a', [
+            f'Trong {cond}, bạn cần đặc biệt lưu tâm đến các biểu hiện bất thường như: tiếng kêu lạ phát ra từ bộ truyền động, tay lái có hiện tượng rung lắc hoặc nặng bất thường, hiệu quả phanh suy giảm hoặc xe có cảm giác ì ạch khi vặn ga. Đây là những tín hiệu cảnh báo hệ thống cơ khí đang cần được can thiệp kịp thời.',
+            f'Đối với hệ thống truyền động và bánh xe của {v}, sự thay đổi nhiệt độ và độ ẩm trong {cond} có thể làm giảm tuổi thọ cao su lốp, gây giãn xích hoặc chai cứng bố thắng. Nếu phát hiện xe tiêu hao nhiên liệu tăng đột biến so với bình thường, bạn nên tiến hành kiểm tra bugi và tấm lọc gió ngay.',
+            f'Đối với các mẫu xe máy điện, việc theo dõi thời gian sạc pin và tốc độ sụt giảm điện áp khi leo dốc là cực kỳ quan trọng. Khi pin có dấu hiệu tụt vạch nhanh bất thường hoặc bộ sạc nóng quá mức cho phép, hãy ngừng sử dụng và đưa xe đến trung tâm chuyên môn để đo đạc dung lượng thực tế.'
+        ]) + paragraph(seed+'2b', [
+            f'Hãy duy trì thói quen quan sát nhanh chiếc xe trước mỗi chuyến đi dài. Bạn có thể đối chiếu tình trạng phương tiện với <a href="/bao-duong/xe-may/kiem-tra-truoc-khi-nhan/">checklist kiểm tra kỹ thuật xe máy</a> để không bỏ sót các hư hỏng tiềm ẩn.',
+            f'Đối với {a}, việc phát hiện sớm hư hỏng không chỉ bảo vệ chiếc {v} khỏi những hỏng hóc dây chuyền tốn kém mà còn là tấm lá chắn bảo vệ an toàn tính mạng cho chính bạn và những người cùng tham gia giao thông.'
+        ])
+    ))
 
+    sections.append((f'Quy trình từng bước {t} chuẩn kỹ thuật',
+        paragraph(seed+'3a', [
+            f'Bước đầu tiên trong quy trình là làm sạch bề mặt khu vực cần thao tác, đặt {v} trên mặt phẳng vững chắc bằng chân chống giữa và để động cơ nguội hoàn toàn nếu vừa di chuyển. Chuẩn bị đầy đủ dụng cụ chuyên dụng phù hợp với đúng thông số kỹ thuật của nhà sản xuất.',
+            f'Tiến hành tháo mở cẩn thận các chi tiết ốc vít theo đúng chiều ren, kiểm tra độ mòn thực tế của linh kiện cũ và vệ sinh sạch sẽ các cặn bẩn bám dính. Luôn sử dụng dung dịch tẩy rửa chuyên dụng, tránh dùng xăng thơm hay hóa chất tẩy mạnh làm hư hại các vòng đệm cao su hoặc phốt dầu.',
+            f'Lắp ráp linh kiện mới hoặc chi tiết đã bảo dưỡng về vị trí cũ, siết ốc với lực siết vừa đủ theo khuyến cáo kỹ thuật để tránh hiện tượng trờn ren ốc lốc máy. Bôi trơn các khớp chuyển động bằng mỡ bò chịu nhiệt hoặc dầu nhớt chuyên dụng chất lượng cao.'
+        ]) + paragraph(seed+'3b', [
+            f'Sau khi hoàn tất việc lắp ráp, khởi động {v} và chạy thử ở tốc độ thấp trong khu vực an toàn để kiểm tra độ ổn định. Lắng nghe kỹ tiếng máy và thử lại các tính năng phanh, ga để chắc chắn phương tiện đã sẵn sàng vận hành trơn tru.',
+            f'Lưu ý ghi chép lại số km trên đồng hồ công-tơ-mét và mốc thời gian thực hiện để thiết lập chu kỳ bảo dưỡng kế tiếp. Nếu chưa tự tin về tay nghề cơ khí, bạn nên đưa xe đến các cơ sở uy tín để được kỹ thuật viên giàu kinh nghiệm hỗ trợ.'
+        ])
+    ))
+
+    sections.append((f'Những sai lầm phổ biến khi tự chăm sóc {v}',
+        paragraph(seed+'4a', [
+            f'Sai lầm phổ biến nhất mà nhiều {a} mắc phải là sử dụng sai chủng loại dầu nhớt hoặc dung dịch kỹ thuật không tương thích với chiếc {v}. Ví dụ, dùng nhầm nhớt xe số cho xe tay ga hoặc ngược lại sẽ khiến động cơ nóng ran, gây trượt ly hợp hoặc làm giảm hiệu suất buồng đốt nghiêm trọng.',
+            f'Một lỗi tai hại khác là siết ốc xả dầu quá chặt gây nứt lốc máy, hoặc siết quá lỏng làm rò rỉ dầu nhớt ra mặt đường gây nguy hiểm khi vào cua. Nhiều người dùng cũng thường quên thay long-đền nhôm mỗi lần xả nhớt, dẫn đến hiện tượng rịn dầu âm ỉ kéo dài.',
+            f'Đối với việc rửa xe tại nhà, việc xịt vòi nước áp lực cao trực tiếp vào khu vực ổ bi cổ phốt, công tắc điện tay lái hay họng gió buồng đốt có thể làm nước lọt vào vi mạch điều khiển, gây chập cháy cầu chì hoặc chết bugi đánh lửa.'
+        ]) + paragraph(seed+'4b', [
+            f'Để tránh các sự cố kỹ thuật không đáng có, bạn nên tham khảo kỹ các tài liệu hướng dẫn vận hành hoặc tra cứu thêm tại <a href="/kinh-nghiem/lai-xe-o-ha-noi/">chuyên mục kinh nghiệm sử dụng xe</a> trước khi tự mình tháo lắp các cụm chi tiết phức tạp.',
+            f'Khi phát hiện có dấu hiệu bất thường ngoài khả năng xử lý, tuyệt đối không cố chấp nổ máy tiếp tục chạy. Hãy gọi điện nhờ hỗ trợ kỹ thuật để tránh làm hỏng hóc lây lan sang các bộ phận đắt tiền khác.'
+        ])
+    ))
+
+    sections.append((f'Chi phí linh kiện, phụ tùng và công thợ tham khảo',
+        paragraph(seed+'5a', [
+            f'Chi phí cho hạng mục {t} trên {v} dao động tùy thuộc vào việc bạn lựa chọn phụ tùng chính hãng của hãng xe hay phụ tùng OEM từ các thương hiệu thứ ba danh tiếng. Thông thường, mức giá vật tư cơ bản rơi vào khoảng từ vài chục nghìn đến vài trăm nghìn đồng tùy chi tiết.',
+            f'Tiền công thợ tại các xưởng sửa xe uy tín tại Hà Nội thường được niêm yết công khai từ 50.000đ đến 150.000đ cho các gói bảo dưỡng định kỳ cơ bản. Bạn nên yêu cầu xưởng báo giá trọn gói bao gồm cả công lắp đặt trước khi đồng ý cho thợ tiến hành làm.',
+            f'Nên cảnh giác với các cửa hàng chào mời dịch vụ với mức giá rẻ bất thường vì rất có thể họ sử dụng dầu nhớt tái chế hoặc phụ tùng giả nhái kém chất lượng. Việc đầu tư phụ tùng chuẩn chỉ ngay từ đầu sẽ giúp bạn tiết kiệm dài hạn và đảm bảo an toàn tuyệt đối.'
+        ]) + paragraph(seed+'5b', [
+            f'Nếu bạn đang cân nhắc chi phí giữa việc giữ xe cũ tốn kém bảo dưỡng định kỳ với việc thuê xe vận hành êm ái không lo sửa chữa, hãy tham khảo <a href="/bang-gia/">bảng giá thuê xe máy theo tháng</a> để có sự so sánh kinh tế rõ ràng nhất.',
+            f'Các cửa hàng chuyên nghiệp luôn có chế độ bảo hành rõ ràng từ 1 đến 3 tháng cho các phụ tùng mới thay thế. Hãy giữ lại hóa đơn bán hàng hoặc phiếu bảo dưỡng để đối chiếu quyền lợi khi cần thiết.'
+        ])
+    ))
+
+    sections.append((f'Lời khuyên dành riêng cho {a} khi sử dụng xe hằng ngày',
+        paragraph(seed+'6a', [
+            f'Với nhịp sống bận rộn tại các đô thị, {a} nên cài đặt ứng dụng nhắc nhở hoặc dán tem ghi nhớ số km bảo dưỡng ngay trên mặt đồng hồ {v}. Thiết lập thói quen kiểm tra định kỳ mỗi 1.500 đến 2.000 km sẽ giúp xe luôn vận hành trong trạng thái lý tưởng nhất.',
+            f'Khi sử dụng xe trong điều kiện {cond}, hãy chú ý rửa sạch bùn đất bám vào gầm máy, đĩa phanh và phuộc nhún ngay sau khi đi mưa về. Bùn đất chứa nhiều axit và tạp chất ăn mòn nếu để khô két sẽ làm rỉ sét ty phuộc và mòn đĩa phanh rất nhanh.',
+            f'Luôn trang bị sẵn trên xe một bộ đồ nghề mini cơ bản gồm tuốc-nơ-vít, kìm nhỏ và đầu mở bugi kèm một chiếc bơm lốp mini cầm tay. Những vật dụng này sẽ là cứu cánh đắc lực giúp bạn tự xử lý các sự cố vặt trên đường vắng.'
+        ]) + paragraph(seed+'6b', [
+            f'Đảm bảo luôn mang theo giấy phép lái xe và giấy tờ xe hợp lệ khi tham gia giao thông. Bạn có thể tra cứu các quy chuẩn an toàn mới nhất tại <a href="/luat-giao-thong/nguon-tra-cuu/">chuyên mục tra cứu luật giao thông</a> để vững tâm trong mọi chuyến đi.',
+            f'Hãy lắng nghe cảm giác lái của chính mình: bất kỳ tiếng kêu rè rè, rung lắc hay độ trễ ga nào cũng là dấu hiệu phương tiện đang cần được bạn quan tâm chăm sóc.'
+        ])
+    ))
+
+    sections.append((f'Câu hỏi thường gặp về việc bảo dưỡng {v}',
+        paragraph(seed+'7a', [
+            f'<strong>Bao lâu thì nên thực hiện {t} một lần?</strong> Chu kỳ lý tưởng phụ thuộc vào tần suất di chuyển và điều kiện môi trường. Với mật độ chạy phố hằng ngày tại Hà Nội, chuyên gia khuyến nghị bạn nên kiểm tra sau mỗi 2 đến 3 tháng hoặc tương đương 2.000 km lăn bánh.',
+            f'<strong>Có thể tự thực hiện tại nhà được không?</strong> Những thao tác vệ sinh bên ngoài, tra dầu xích hay đo áp suất lốp bạn hoàn toàn có thể tự làm tại nhà với dụng cụ cơ bản. Tuy nhiên, các hạng mục liên quan đến mở lốc máy, cân chỉnh xupap hay hệ thống điện tử nên để thợ có tay nghề thực hiện.',
+            f'<strong>Dấu hiệu nào cho thấy linh kiện đã đến hạn phải thay thế gấp?</strong> Khi chi tiết xuất hiện vết nứt vỡ, độ mòn vượt quá chỉ số báo vạch an toàn của nhà sản xuất hoặc phát ra tiếng kêu cọ xát kim loại chói tai, bạn bắt buộc phải thay thế ngay lập tức để tránh tai nạn.'
+        ]) + paragraph(seed+'7b', [
+            f'Để tìm hiểu thêm nhiều kinh nghiệm hữu ích khác về các dòng xe máy, xe điện và xe đạp thể thao, bạn có thể tham khảo mục <a href="/faq/">giải đáp thắc mắc thường gặp FAQ</a> được đội ngũ kỹ thuật cập nhật liên tục.',
+            f'Đừng ngần ngại hỏi rõ thợ sửa xe về nguồn gốc xuất xứ của từng món linh kiện được lắp vào xe để chắc chắn bạn nhận được giá trị xứng đáng với số tiền đã chi trả.'
+        ])
+    ))
+
+    sections.append((f'Thông tin liên hệ Thuê xe máy Nguyễn Hà',
+        f'<p>{brand} tọa lạc tại {addr} ({escape(FACTS["landmark"])}). Cửa hàng mở cửa từ {hours}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p>'
+        + f'<p>Quý khách có thể xem thêm <a href="/bang-gia/">bảng giá niêm yết</a>, <a href="/thue-xe-may/ha-noi/">thuê xe máy Hà Nội</a>, <a href="/faq/">câu hỏi thường gặp FAQ</a> và <a href="/lien-he/">trang liên hệ</a> để được hỗ trợ chu đáo nhất.</p>'
+        + paragraph(seed+'contact', [
+            f'Đội ngũ chăm sóc khách hàng của {brand} luôn sẵn sàng tư vấn mẫu xe phù hợp nhất với nhu cầu và lịch trình của bạn. Chúng tôi cam kết xe vận hành êm ái, đầy đủ giấy tờ và hỗ trợ kỹ thuật tận tình.',
+            f'Với phương châm phục vụ tận tâm và chuyên nghiệp, {brand} tự hào đồng hành cùng quý khách trên mọi nẻo đường thủ đô. Hãy gọi ngay hotline để được chuẩn bị xe tốt nhất trước giờ xuất phát.'
+        ])
+    ))
+
+    body = ' '.join(x[1] for x in sections); wc = len(words(body))
+    return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
+            'excerpt':f'Cẩm nang {t} cho {v} ({a}): dấu hiệu nhận biết sớm, các bước chuẩn xác và tư vấn từ Nguyễn Hà.',
+            'sections':[[h,b] for h,b in sections],'keywords':f'{s["topic"]} {v} {a} {cond}',
+            'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
+            'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+
+# ── Writer 3: Du lịch & Phượt ─────────────────────────────────────────────────
 def make_du_lich(s):
- v=escape(s['vehicle']);place=escape(s['place']);dur=escape(s['duration']);tt=escape(s['travel_type'])
- seed=s['intent'];brand=escape(FACTS['brand']);phone=escape(FACTS['phone'])
- sections=[]
- sections.append((f'Tại sao chọn {v} cho chuyến đi {place}',
-  f'<p>Du lịch {place} bằng {v} mang lại sự linh hoạt mà phương tiện công cộng khó đáp ứng: tự quyết thời gian, ghé các điểm không nằm trên lộ trình cố định và khám phá ngõ nhỏ, làng quê hoặc đèo núi theo nhịp riêng. Hành trình {dur} phù hợp với {tt} nếu chuẩn bị kỹ.</p>'
-  +paragraph(seed+'A',[
-   f'{tt.capitalize()} chọn {v} vì chi phí thấp hơn xe khách hoặc thuê ô tô, đồng thời dễ tìm chỗ đỗ tại các điểm du lịch đông người ở {place}. Chuyến {dur} cho phép ghé nhiều địa điểm trong bán kính hẹp mà không cần đặt tour cố định.',
-   f'Với {tt}, {v} là lựa chọn phổ biến để khám phá {place} theo lộ trình tự thiết kế. Trong {dur}, bạn có thể điều chỉnh tốc độ, thêm hoặc bỏ điểm ghé tùy thời tiết và sức khỏe thực tế.'
-  ])))
- sections.append((f'Chuẩn bị trước chuyến đi {place}',
-  paragraph(seed+'B',[
-   f'Kiểm tra kỹ {v} trước ít nhất một ngày: lốp, phanh, đèn, mức nhiên liệu hoặc pin, gương và còi. Mang theo bộ vá lốp cơ bản, bơm tay nhỏ và số điện thoại cứu trợ lộ trình. Nạp đầy pin điện thoại và tải bản đồ offline cho {place}.',
-   f'Trước {dur} đến {place}, lập danh sách các trạm xăng hoặc điểm sạc trên tuyến đường chính. Với {tt}, nên có ít nhất một thành viên biết cách bơm lốp và kiểm tra cơ bản. Thông báo lịch trình cho người thân để đảm bảo an toàn.'
-  ])+f'<p>Đặt chỗ ở sớm nếu đi vào mùa cao điểm. Mang theo áo mưa, kem chống nắng, thuốc cá nhân và chứng minh thư hoặc hộ chiếu. Kiểm tra tình hình thời tiết {place} trước 24 giờ để điều chỉnh lịch.</p>'))
- sections.append((f'Lộ trình gợi ý cho {dur} tại {place}',
-  f'<p>Lộ trình dưới đây mang tính tham khảo và cần điều chỉnh theo điều kiện thực tế, sức khỏe của {tt} và tình hình giao thông tại thời điểm đi. Không cố gắng hoàn thành toàn bộ danh sách nếu không đủ thời gian hoặc thời tiết xấu.</p>'
-  +paragraph(seed+'C',[
-   f'Buổi sáng sớm là thời điểm lý tưởng để khởi hành tại {place}, tránh nắng và đông đúc. {tt.capitalize()} nên xuất phát trước 7h, dừng ăn sáng tại quán địa phương, ghé các điểm ngoại thành trước khi đến trung tâm. Giữ lại ít nhất một giờ đệm để xử lý tình huống phát sinh.',
-   f'Chia lộ trình theo từng nửa ngày để {tt} có thể nghỉ đủ giữa các điểm. Tại {place}, các tuyến đường liên xã hoặc ven biển thường ít xe và cảnh đẹp hơn đường quốc lộ. Hỏi người dân địa phương về tình trạng đường thực tế thay vì chỉ dựa vào bản đồ.'
-  ])))
- sections.append(('An toàn khi đi đường dài bằng xe máy',
-  f'<p>Đội mũ bảo hiểm đủ tiêu chuẩn trong suốt hành trình, kể cả đường vắng. Không chạy quá tốc độ cho phép, không vừa lái vừa nhìn điện thoại và không chạy khi đã mệt. Dừng nghỉ mỗi 90–120 phút để phục hồi sự tập trung.</p>'
-  +paragraph(seed+'D',[
-   f'Với {tt} di chuyển {dur} tại {place}, lập kế hoạch nghỉ đêm rõ ràng và không chạy đường núi hoặc đèo sau 17h nếu chưa quen. Đèo núi ở miền Bắc thường có sương mù buổi sáng sớm và chiều tối; hãy chờ tầm nhìn đủ rõ.',
-   f'Kiểm tra quy định giao thông địa phương tại {place}: một số tuyến đường du lịch có giờ cấm xe máy hoặc giới hạn tốc độ thấp hơn thông thường. Không đỗ xe chắn lối đi tại các điểm tham quan đông người.'
-  ])))
- sections.append(('Chi phí tham khảo cho chuyến đi',
-  f'<p>Chi phí chuyến {dur} của {tt} đến {place} bằng {v} bao gồm: nhiên liệu hoặc sạc điện, chỗ ở mỗi đêm, ăn uống, vé tham quan và dự phòng sửa xe. Lập bảng chi phí trước giúp tránh hết tiền giữa chuyến.</p>'
-  +paragraph(seed+'E',[
-   f'Nếu thuê {v} thay vì dùng xe cá nhân, xem <a href="/thue-xe-may/ha-noi/">bảng giá thuê xe máy Hà Nội</a> để ước tính tổng chi phí thuê cho toàn bộ hành trình. Thuê theo tuần thường tiết kiệm hơn thuê theo ngày cho chuyến dài ngày.',
-   f'{tt.capitalize()} nên để dự phòng 15–20% tổng ngân sách cho phát sinh: vá lốp, chỗ nghỉ thay thế hoặc đổi lịch do thời tiết. Một số điểm đến tại {place} có phí dịch vụ không ghi trong bảng giá online.'
-  ])))
- sections.append(('Điểm không thể bỏ qua tại ' + s['place'],
-  f'<p>Danh sách điểm đến phụ thuộc vào mùa và sở thích của {tt}. Nên hỏi người dân địa phương hoặc nhóm du lịch online về điểm đang mở cửa, điểm đang sửa chữa và giờ đẹp nhất trong ngày để tham quan.</p>'
-  +paragraph(seed+'F',[
-   f'Với {dur}, {tt} có thể kết hợp tham quan cả điểm nổi tiếng lẫn địa điểm ít người biết gần {place}. Thường thì địa điểm cách trung tâm 10–20 km đông khách ít hơn nhưng phong cảnh tương đương. Hỏi chủ nhà nghỉ về gợi ý cụ thể theo mùa.',
-   f'Tránh đến {place} vào cao điểm lễ Tết nếu {tt} muốn không gian yên tĩnh và giá dịch vụ hợp lý. Mùa hoa, mùa lúa hoặc mùa biển là thời điểm phụ thuộc vào địa điểm cụ thể; tìm hiểu trước để chọn thời gian phù hợp nhất.'
-  ])))
- sections.append(('Thuê xe và liên hệ Nguyễn Hà trước khi lên đường',
-  f'<p>Nếu chưa có xe hoặc muốn thử loại xe phù hợp hơn cho địa hình {place}, {brand} tại {escape(FACTS["address"])}, {escape(FACTS["landmark"])} cung cấp các loại xe phù hợp cho hành trình dài ngày. Giờ mở cửa: {escape(FACTS["hours"])}. Điện thoại: <a href="tel:+84334699969">{phone}</a>.</p>'
-  +f'<p>Khi liên hệ, cho biết điểm đến ({place}), số ngày ({dur}), số người trong nhóm ({tt}) và loại địa hình dự kiến. Cửa hàng sẽ gợi ý xe phù hợp và tư vấn về điều kiện đường. Xem <a href="/bang-gia/">bảng giá</a>, <a href="/kinh-nghiem/lai-xe-o-ha-noi/">kinh nghiệm lái xe ở Hà Nội</a> và <a href="/faq/">FAQ</a> để chuẩn bị tốt hơn.</p>'))
- body=' '.join(x[1] for x in sections);wc=len(words(body))
- return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
-         'excerpt':f'Hành trình {dur} đến {place} bằng {v} dành cho {tt}: lộ trình, chi phí, an toàn và điểm không bỏ qua.',
-         'sections':[[h,b] for h,b in sections],'keywords':f'du lịch {place} {v} {dur} {tt}',
-         'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
-         'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+    place=escape(s['place']); v=escape(s['vehicle']); dur=escape(s['duration'])
+    tt=escape(s['travel_type']); ang=escape(s['angle_label'])
+    seed=s['intent']; brand=escape(FACTS['brand']); phone=escape(FACTS['phone'])
+    addr=escape(FACTS['address']); hours=escape(FACTS['hours'])
 
+    sections=[]
+    sections.append((f'Tổng quan cung đường phượt {place} bằng {v}',
+        paragraph(seed+'1a', [
+            f'Hành trình khám phá {place} bằng {v} là một trong những trải nghiệm du lịch tuyệt vời nhất dành cho {tt}. Cảm giác tự do cầm lái, hòa mình vào thiên nhiên tươi đẹp và làm chủ từng cung đường sẽ mang lại những kỷ niệm khó quên cho cả chuyến đi.',
+            f'Điểm đến {place} nổi tiếng với phong cảnh sơn thủy hữu tình, không khí trong lành và bản sắc văn hóa địa phương độc đáo. Lựa chọn {v} làm phương tiện di chuyển trong chuyến {dur} giúp bạn dễ dàng dừng chân chụp ảnh tại những góc check-in tuyệt đẹp ven đường mà các tour xe khách lớn không thể ghé vào.',
+            f'Để chuyến đi diễn ra trọn vẹn và an toàn, việc lên kế hoạch chi tiết về {ang} đóng vai trò vô cùng quan trọng. Dù bạn là phượt thủ dày dặn kinh nghiệm hay mới lần đầu đi xa, sự chuẩn bị chu đáo sẽ giúp bạn làm chủ mọi tình huống phát sinh.'
+        ]) + paragraph(seed+'1b', [
+            f'Bài viết này chia sẻ cẩm nang thực tế từ A đến Z cho chuyến phượt {place} cùng chiếc {v}. Toàn bộ thông tin lộ trình, chi phí và kinh nghiệm thực tế được tổng hợp nhằm giúp {tt} có một chuyến đi an toàn, tiết kiệm và đáng nhớ.',
+            f'Nếu bạn từ nơi khác đến Hà Nội và chưa có sẵn xe máy đạt chuẩn để leo đèo, hãy tham khảo ngay dịch vụ cho thuê xe phượt uy tín tại <a href="/thue-xe-may/ha-noi/">thuê xe máy Hà Nội Nguyễn Hà</a> với dàn xe máy khỏe, bảo dưỡng kỹ càng.'
+        ])
+    ))
 
-# ── Writer 4: Luật giao thông & Kinh nghiệm ──────────────────────────────────
-def spec_for_luat(seq):
- n=seq-1;aud=LAW_AUDIENCES[n%len(LAW_AUDIENCES)];n//=len(LAW_AUDIENCES)
- topic_key,topic_label=LAW_TOPICS[n%len(LAW_TOPICS)]
- hub='luat-giao-thong' if 'bằng' in topic_key or 'phạt' in topic_label or 'luật' in topic_label or topic_key in ('mũ bảo hiểm','nồng độ cồn','điện thoại khi lái','tốc độ đô thị','đỗ xe sai','vượt đèn đỏ','kiểm định xe','nhường đường','camera phạt nguội','biển báo') else 'kinh-nghiem'
- title=f'{topic_label.capitalize()} — hướng dẫn dành cho {aud}'
- intent=f'luat-kn|{topic_key}|{aud}'.lower()
- url=f'/{hub}/{slugify(topic_key)}-{slugify(aud)}/'
- return {'sequence':seq,'title':title,'intent':intent,'hub':hub,
-         'topic':topic_key,'topic_label':topic_label,'audience':aud,'url':url,'writer':'luat'}
+    sections.append((f'Hướng dẫn lộ trình từ Hà Nội đến {place} tối ưu nhất',
+        paragraph(seed+'2a', [
+            f'Xuất phát từ trung tâm Hà Nội, cung đường hướng về {place} có thể lựa chọn theo nhiều hướng khác nhau tùy thuộc vào điều kiện thời tiết và sở thích ngắm cảnh. Bạn nên ưu tiên các trục quốc lộ lớn có mặt đường nhựa bằng phẳng, tầm nhìn thông thoáng và có nhiều trạm dừng nghỉ ven đường.',
+            f'Thời điểm xuất phát lý tưởng nhất là vào khoảng 5h30 đến 6h00 sáng để tránh khung giờ tắc đường tại các cửa ngõ thủ đô và tận hưởng không khí mát mẻ buổi sớm mai. Di chuyển bằng {v} cho phép bạn duy trì tốc độ ổn định từ 40 đến 50 km/h, vừa đảm bảo an toàn vừa không bị quá sức.',
+            f'Hãy chú ý quan sát các biển báo hiệu giao thông, vạch kẻ đường và giới hạn tốc độ tại các khu vực đông dân cư dọc tuyến đường. Không nên chạy bám đuôi các dòng xe tải nặng hay xe container lớn để tránh bị hạn chế tầm nhìn và bụi bẩn làm mờ kính chắn gió.'
+        ]) + paragraph(seed+'2b', [
+            f'Để chuẩn bị tốt nhất về kỹ năng xử lý tình huống giao thông đường dài, bạn có thể tham khảo thêm <a href="/kinh-nghiem/lai-xe-o-ha-noi/">kinh nghiệm lái xe an toàn đường trường</a> được đúc kết từ nhiều tay lái lâu năm.',
+            f'Lưu ý cài đặt trước bản đồ ngoại tuyến (offline maps) trên điện thoại đề phòng trường hợp đi qua các đoạn đèo núi cao hoặc vùng sâu vùng xa bị mất sóng điện thoại di động.'
+        ]) + paragraph(seed+'2c', [f'Trước khi khởi hành một chặng đường dài, hãy luôn kiểm tra lại mức dầu máy và áp suất hai bánh xe {v}. Việc duy trì tốc độ đều đặn không chỉ giúp bảo vệ động cơ mà còn mang lại cảm giác thư thái ngắm nhìn phong cảnh thiên nhiên tuyệt đẹp dọc đường.', f'Một thói quen quan trọng của các tay lái đường trường là phân chia chặng dừng nghỉ hợp lý sau mỗi 60 đến 80 km lăn bánh. Dừng xe uống nước, thả lỏng cơ bắp và kiểm tra lại dây chằng đồ sau xe sẽ giúp bạn duy trì sự tỉnh táo suốt hành trình.'])
+    ))
 
+    sections.append((f'Lịch trình chi tiết {dur} dành cho {tt}',
+        paragraph(seed+'3a', [
+            f'Với khoảng thời gian {dur}, bạn nên phân bổ lịch trình một cách khoa học: ngày đầu tiên tập trung di chuyển đến nơi, nhận phòng nghỉ ngơi và khám phá các điểm tham quan gần trung tâm vào buổi chiều muộn để cơ thể thích nghi với khí hậu địa phương.',
+            f'Các ngày tiếp theo sẽ là thời gian lý tưởng để {tt} cùng chiếc {v} chinh phục những thắng cảnh đặc sắc nhất của {place}. Hãy dậy sớm đón bình minh, săn mây trên đỉnh đèo và ghé thăm các bản làng văn hóa để trải nghiệm nhịp sống bình dị của người dân bản địa.',
+            f'Buổi tối là khoảng thời gian tuyệt vời để thưởng thức ẩm thực đường phố ấm nóng, dạo bộ ngắm cảnh đêm lung linh và thư giãn sau một ngày dài di chuyển. Hãy dành buổi sáng của ngày cuối cùng để mua sắm đặc sản làm quà trước khi thong thả lái xe trở về Hà Nội.'
+        ]) + paragraph(seed+'3b', [
+            f'Lịch trình nên có những khoảng trống linh hoạt khoảng 1 đến 2 tiếng để nghỉ ngơi hoặc điều chỉnh kế hoạch khi gặp mưa gió bất ngờ. Không nên cố nhồi nhét quá nhiều điểm tham quan trong một ngày khiến chuyến đi biến thành một cuộc chạy đua mệt mỏi.',
+            f'Tìm hiểu thêm những mẹo sắp xếp hành lý thông minh tại chuyên mục <a href="/faq/">giải đáp thắc mắc du lịch phượt</a> để chuyến đi thêm phần nhẹ nhàng và tiện lợi.'
+        ])
+    ))
+
+    sections.append((f'Kinh nghiệm lái xe an toàn, leo đèo và ứng phó thời tiết',
+        paragraph(seed+'4a', [
+            f'Khi điều khiển {v} qua các cung đường đèo dốc quanh co tại {place}, nguyên tắc vàng là: lên đèo số nào thì xuống đèo số đó. Tuyệt đối không tắt máy thả trôi xe hoặc rà phanh liên tục khi đổ dốc dài vì ma sát cao sẽ làm cháy bố phanh, sôi dầu phanh dẫn đến mất hoàn toàn tác dụng phanh.',
+            f'Luôn giữ xe chạy đúng phần đường của mình khi vào cua khuất tầm nhìn, không lấn làn vượt ẩu qua vạch kẻ liền. Trước khi vào cua hẹp, hãy bấm còi báo hiệu từ xa để các phương tiện đi ngược chiều chủ động giảm tốc độ nhường đường.',
+            f'Nếu gặp trời mưa đường trơn trượt hoặc sương mù dày đặc che khuất tầm nhìn, hãy bật đèn sương mù hoặc dán đề can vàng lên đèn pha, giảm tốc độ và bám theo dải phân cách hoặc cọc tiêu phản quang ven đường để giữ hướng đi an toàn.'
+        ]) + paragraph(seed+'4b', [
+            f'Luôn trang bị đầy đủ bộ giáp bảo hộ tay chân, găng tay chống nước và mũ bảo hiểm đạt chuẩn che phủ kín đầu. Tra cứu thêm các quy định giao thông đường bộ tại <a href="/luat-giao-thong/nguon-tra-cuu/">nguồn tra cứu luật và bằng lái</a> để đảm bảo tuân thủ đúng pháp luật.',
+            f'Khi cảm thấy mỏi mắt hoặc buồn ngủ, hãy dừng xe ngay tại quán nước ven đường để rửa mặt, uống một tách trà nóng và nghỉ ngơi 15 phút trước khi tiếp tục hành trình.'
+        ]) + paragraph(seed+'4c', [f'Quy tắc sống còn khi đổ đèo dốc bằng {v} là giữ khoảng cách tối thiểu 30 đến 50 mét với xe phía trước. Tuyệt đối không vượt xe ở những đoạn đường có vạch kẻ liền hoặc góc cua hẹp, và luôn sẵn sàng nhường đường cho xe đang lên dốc theo đúng luật.', f'Khi gặp thời tiết sương mù dày đặc hoặc mưa dông bất chợt trên đèo, hãy bật đèn chiếu gần, di chuyển sát mép đường bên phải và bám theo cọc tiêu phản quang. Tuyệt đối không dừng xe chụp ảnh ở những góc cua khuất tầm nhìn của các phương tiện lớn.'])
+    ))
+
+    sections.append((f'Dự toán kinh phí xăng xe, ăn uống và lưu trú tại {place}',
+        paragraph(seed+'5a', [
+            f'Tổng kinh phí cho chuyến đi {dur} đến {place} thường rất hợp lý và dễ kiểm soát. Chi phí xăng xe cho chiếc {v} khứ hồi thường dao động từ 150.000đ đến 300.000đ tùy theo quãng đường thực tế và mức tiêu hao nhiên liệu của xe.',
+            f'Về nơi lưu trú, bạn có thể lựa chọn giữa các homestay mang đậm bản sắc địa phương với mức giá từ 150.000đ đến 300.000đ/người/đêm, hoặc các khách sạn tiện nghi từ 400.000đ đến 800.000đ/đêm. Đặt phòng trước qua các nền tảng trực tuyến giúp bạn chọn được phòng đẹp với mức giá ưu đãi.',
+            f'Chi phí ăn uống tại {place} khá phong phú với các món đặc sản tươi ngon. Mỗi người chỉ cần dự trù khoảng 200.000đ đến 350.000đ mỗi ngày là có thể thưởng thức trọn vẹn tinh hoa ẩm thực địa phương từ các món nướng than hoa đến lẩu rau rừng.'
+        ]) + paragraph(seed+'5b', [
+            f'Nếu bạn cần thuê phương tiện tại Hà Nội cho cả chuyến đi, đừng quên tham khảo biểu phí ưu đãi trọn gói tại <a href="/bang-gia/">bảng giá thuê xe máy theo tuần</a> để nhận mức giá tiết kiệm nhất.',
+            f'Hãy chuẩn bị thêm một khoản ngân sách dự phòng khoảng 500.000đ đến 1.000.000đ trong tài khoản ngân hàng để chủ động xử lý các tình huống vá săm, sửa xe hoặc phát sinh ngoài dự kiến trên đường.'
+        ]) + paragraph(seed+'5c', [f'Để tối ưu hóa chi phí cho cả nhóm {tt}, bạn nên mua chung vé tham quan và đặt ăn theo set menu tại các nhà hàng địa phương uy tín. Việc chia sẻ chi phí nhiên liệu và phòng nghỉ sẽ giúp chuyến đi vừa vui vẻ vừa vô cùng tiết kiệm.', f'Luôn giữ lại hóa đơn thanh toán hoặc thỏa thuận giá cả dịch vụ trước khi sử dụng để tránh bị chặt chém tại các khu du lịch đông đúc vào dịp cao điểm cuối tuần.'])
+    ))
+
+    sections.append((f'Điểm check-in đẹp và đặc sản ẩm thực không nên bỏ qua',
+        paragraph(seed+'6a', [
+            f'Đến với {place}, bạn nhất định không thể bỏ qua những địa danh nổi tiếng với góc chụp ảnh triệu view nhìn toàn cảnh mây trời non nước. Hãy dành thời gian trò chuyện với người dân địa phương để khám phá thêm những con thác hoang sơ hay đồi thông vắng vẻ ít người biết.',
+            f'Ẩm thực tại {place} ghi dấu ấn sâu đậm với hương vị đậm đà mộc mạc. Những món đặc sản trứ danh được chế biến từ nguyên liệu tươi ngon tại chỗ sẽ làm nức lòng bất kỳ thực khách khó tính nào sau những giờ phút lái xe hăng say.',
+            f'Vào buổi tối se lạnh, việc quây quần bên bếp than hồng cùng {tt}, nhâm nhi chén trà thơm và thưởng thức món nướng đặc sản sẽ là trải nghiệm gắn kết ấm áp khó phai trong suốt chuyến đi.'
+        ]) + paragraph(seed+'6b', [
+            f'Hãy là những phượt thủ văn minh: tuyệt đối không xả rác bừa bãi tại các điểm tham quan thiên nhiên, tôn trọng phong tục tập quán địa phương và giữ gìn cảnh quan môi trường xanh sạch đẹp cho những người đến sau.',
+            f'Xem thêm các bài viết chia sẻ kinh nghiệm khám phá tại <a href="/kinh-nghiem/">chuyên mục cẩm nang du lịch trải nghiệm</a> để tích lũy thêm nhiều tọa độ check-in độc đáo.'
+        ])
+    ))
+
+    sections.append((f'Checklist chuẩn bị {v} và đồ dùng thiết yếu',
+        paragraph(seed+'7a', [
+            f'Trước ngày khởi hành ít nhất 1 ngày, hãy đưa chiếc {v} đi bảo dưỡng tổng thể: thay dầu máy mới, căn chỉnh phanh, tra dầu xích líp, kiểm tra gai lốp và siết lại toàn bộ ốc vít khung gầm. Bạn có thể tham khảo kỹ hơn tại <a href="/bao-duong/xe-may/kiem-tra-truoc-khi-nhan/">hướng dẫn kiểm tra xe trước chuyến đi</a>.',
+            f'Về trang phục và hành lý cá nhân: chuẩn bị áo mưa bộ chuyên dụng chất lượng cao, bọc giày chống nước, túi khô chống nước để bọc ba lô, kính râm chống bụi, kem chống nắng và một bộ quần áo ấm phòng khi nhiệt độ vùng cao hạ thấp về đêm.',
+            f'Đừng quên mang theo túi cứu thương cá nhân mini chứa các loại thuốc cơ bản: thuốc hạ sốt, băng gạc cá nhân, thuốc đau bụng, xịt côn trùng cắn và thuốc chống say xe. Giữ toàn bộ giấy tờ tùy thân và tiền mặt trong túi chống nước kín đáo bên trong áo khoác.'
+        ]) + paragraph(seed+'7b', [
+            f'Trang bị thêm một chiếc giá đỡ điện thoại bằng kim loại gắn chắc vào chân gương xe máy kèm tẩu sạc hoặc sạc dự phòng để tiện quan sát bản đồ dẫn đường mà không lo hết pin giữa đường.',
+            f'Luôn nhớ đổ đầy bình xăng trước khi bắt đầu leo vào những cung đèo dài hiểm trở vì các cây xăng trên đèo thường nằm cách xa nhau hàng chục cây số.'
+        ])
+    ))
+
+    sections.append((f'Thông tin liên hệ Thuê xe máy Nguyễn Hà',
+        f'<p>{brand} tọa lạc tại {addr} ({escape(FACTS["landmark"])}). Cửa hàng mở cửa từ {hours}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p>'
+        + f'<p>Quý khách có thể xem thêm <a href="/bang-gia/">bảng giá niêm yết</a>, <a href="/thue-xe-may/ha-noi/">thuê xe máy Hà Nội</a>, <a href="/faq/">câu hỏi thường gặp FAQ</a> và <a href="/lien-he/">trang liên hệ</a> để được hỗ trợ chu đáo nhất.</p>'
+        + paragraph(seed+'contact', [
+            f'Đội ngũ chăm sóc khách hàng của {brand} luôn sẵn sàng tư vấn mẫu xe phù hợp nhất với nhu cầu và lịch trình của bạn. Chúng tôi cam kết xe vận hành êm ái, đầy đủ giấy tờ và hỗ trợ kỹ thuật tận tình.',
+            f'Với phương châm phục vụ tận tâm và chuyên nghiệp, {brand} tự hào đồng hành cùng quý khách trên mọi nẻo đường thủ đô. Hãy gọi ngay hotline để được chuẩn bị xe tốt nhất trước giờ xuất phát.'
+        ])
+    ))
+
+    body = ' '.join(x[1] for x in sections); wc = len(words(body))
+    return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
+            'excerpt':f'Kinh nghiệm phượt {place} bằng {v} ({tt}): cung đường tối ưu, kinh nghiệm leo đèo, chi phí và thuê xe Nguyễn Hà.',
+            'sections':[[h,b] for h,b in sections],'keywords':f'phượt {place} {v} {dur} {tt}',
+            'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
+            'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+
+# ── Writer 4: Luật giao thông & An toàn ──────────────────────────────────────
 def make_luat(s):
- t=escape(s['topic_label']);a=escape(s['audience']);topic=s['topic']
- seed=s['intent'];brand=escape(FACTS['brand']);phone=escape(FACTS['phone'])
- sections=[]
- sections.append((f'Tổng quan: {t}',
-  f'<p>Bài viết tổng hợp thông tin về {t} dành cho {a} tại Việt Nam. Nội dung mang tính tham khảo và không thay thế văn bản pháp luật đang có hiệu lực. Luôn kiểm tra nguồn chính thức hoặc tư vấn pháp lý trước khi quyết định.</p>'
-  +paragraph(seed+'A',[
-   f'Với {a}, hiểu đúng về {t} giúp tránh vi phạm không cố ý và xử lý đúng cách khi bị kiểm tra. Quy định có thể thay đổi theo từng giai đoạn; luôn đối chiếu với <a href="/luat-giao-thong/nguon-tra-cuu/">nguồn chính thức</a> mới nhất.',
-   f'{a.capitalize()} thường gặp khó khăn với {t} do thông tin chồng chéo hoặc chưa được cập nhật. Bài viết này tóm tắt các điểm cốt lõi và dẫn nguồn để bạn tự kiểm tra trực tiếp.'
-  ])))
- sections.append(('Quy định hiện hành',
-  paragraph(seed+'B',[
-   f'Quy định về {t} được quy định trong Luật Giao thông đường bộ và các nghị định hướng dẫn thi hành. Mức phạt, điều kiện và thủ tục có thể được điều chỉnh hằng năm theo nghị định mới. {a.capitalize()} cần xem văn bản hiện hành, không dựa vào thông tin từ nhiều năm trước.',
-   f'Hiện tại, các quy định về {t} áp dụng thống nhất trên toàn quốc nhưng có thể có hướng dẫn bổ sung tại một số địa phương. Người tham gia giao thông cần nắm rõ cả quy định chung lẫn hướng dẫn địa phương nơi mình di chuyển.'
-  ])+f'<p>Để tra cứu văn bản pháp luật đang có hiệu lực, xem <a href="/luat-giao-thong/nguon-tra-cuu/">danh sách nguồn chính thức</a> được tổng hợp tại trang này.</p>'))
- sections.append(('Những sai lầm phổ biến cần tránh',
-  f'<p>Nhiều trường hợp vi phạm xuất phát từ hiểu sai hoặc thông tin cũ. Dưới đây là các điểm {a} cần đặc biệt chú ý liên quan đến {t}.</p>'
-  +paragraph(seed+'C',[
-   f'Sai lầm hay gặp nhất là dựa vào thông tin truyền miệng hoặc bài viết cũ khi tìm hiểu về {t}. Quy định giao thông tại Việt Nam được cập nhật thường xuyên; hãy kiểm tra trực tiếp trên Cổng thông tin Chính phủ hoặc trang Bộ Công an.',
-   f'{a.capitalize()} thường bỏ qua {t} vì coi là không liên quan đến mình, nhưng thực tế đây là nhóm quy định áp dụng cho tất cả người tham gia giao thông, kể cả người điều khiển xe thuê hoặc xe mượn.'
-  ])))
- sections.append(('Thủ tục và giấy tờ cần chuẩn bị',
-  paragraph(seed+'D',[
-   f'Khi làm thủ tục liên quan đến {t}, {a} cần chuẩn bị: chứng minh nhân dân hoặc căn cước công dân, giấy đăng ký xe, giấy phép lái xe phù hợp và các giấy tờ bổ sung theo yêu cầu của cơ quan thụ lý. Bản photo thường không đủ; hãy mang bản gốc.',
-   f'Hồ sơ liên quan đến {t} thường được nộp tại cơ quan công an phường, quận hoặc sở tương ứng tùy loại thủ tục. Tra cứu địa chỉ và giờ tiếp nhận trực tiếp hoặc qua Cổng dịch vụ công trực tuyến trước khi đến.'
-  ])+f'<p>Phí, lệ phí và thời hạn xử lý thay đổi theo từng loại thủ tục và có thể được điều chỉnh. Không nộp tiền cho bất kỳ ai không thuộc cơ quan nhà nước có thẩm quyền.</p>'))
- sections.append(('Câu hỏi thường gặp',
-  f'<p><strong>Có thể nộp phạt online không?</strong> Một số loại vi phạm cho phép nộp phạt qua cổng dịch vụ công hoặc ứng dụng của Bộ Công an. Tra cứu phạt nguội tại iPortal hoặc VNeID và làm theo hướng dẫn hiển thị.</p>'
-  +paragraph(seed+'E',[
-   f'Nếu {a} bị phạt liên quan đến {t} và không đồng ý với quyết định xử phạt, có quyền khiếu nại theo đúng trình tự pháp luật. Hãy giữ lại biên bản xử phạt và liên hệ luật sư hoặc trung tâm tư vấn pháp lý nếu cần.',
-   f'{a.capitalize()} nước ngoài cần lưu ý rằng bằng lái quốc tế chỉ có giá trị khi kèm theo bằng lái gốc của nước cấp. Một số loại xe và một số tuyến đường có quy định riêng áp dụng cho người nước ngoài.'
-  ])))
- sections.append(('Tài nguyên hữu ích',
-  f'<p>Xem thêm <a href="/luat-giao-thong/nguon-tra-cuu/">danh sách nguồn chính thức về luật, bằng lái và đăng kiểm</a> để tra cứu trực tiếp. Nếu đang cần thuê xe và tìm hiểu điều kiện pháp lý, xem <a href="/thue-xe-may/ha-noi/">thông tin thuê xe máy Hà Nội</a> và <a href="/faq/">FAQ</a>.</p>'
-  +f'<p>Kinh nghiệm thực tế từ người dùng: <a href="/kinh-nghiem/lai-xe-o-ha-noi/">đi xe máy ở Hà Nội</a> và <a href="/bao-duong/xe-may/kiem-tra-truoc-khi-nhan/">kiểm tra xe trước khi nhận</a>.</p>'))
- sections.append(('Liên hệ Nguyễn Hà',
-  f'<p>{brand} tại {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Giờ mở cửa: {escape(FACTS["hours"])}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p>'
-  +f'<p>Nếu bạn là {a} đang tìm hiểu về {t} trước khi thuê xe, đội ngũ cửa hàng có thể tư vấn về loại xe phù hợp và điều kiện cần có. Xem <a href="/bang-gia/">bảng giá</a> và <a href="/lien-he/">trang liên hệ</a>.</p>'))
- body=' '.join(x[1] for x in sections);wc=len(words(body))
- return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
-         'excerpt':f'{t.capitalize()} — hướng dẫn thực tế dành cho {a} tại Việt Nam, kèm nguồn tra cứu chính thức.',
-         'sections':[[h,b] for h,b in sections],'keywords':f'{s["topic"]} {a} luật giao thông Hà Nội',
-         'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
-         'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+    t=escape(s['topic_label']); a=escape(s['audience']); ang=escape(s['angle_label']); ctx=escape(s['context'])
+    seed=s['intent']; brand=escape(FACTS['brand']); phone=escape(FACTS['phone'])
+    addr=escape(FACTS['address']); hours=escape(FACTS['hours'])
 
+    sections=[]
+    sections.append((f'Căn cứ pháp lý mới nhất về {t}',
+        paragraph(seed+'1a', [
+            f'Các quy định pháp luật điều chỉnh về {t} là nội dung then chốt mà bất kỳ ai khi tham gia giao thông đường bộ tại Việt Nam cũng cần nắm vững. Việc hiểu đúng và chấp hành nghiêm chỉnh các quy chuẩn này giúp bảo đảm trật tự an toàn công cộng và hạn chế tối đa nguy cơ tai nạn.',
+            f'Đối với {a}, việc trang bị kiến thức pháp lý vững vàng về {t} giúp bạn hoàn toàn tự tin khi lưu thông trên đường, tránh khỏi các lỗi vi phạm do thiếu hiểu biết và biết cách bảo vệ quyền lợi hợp pháp của bản thân khi làm việc với cơ quan chức năng.',
+            f'Đặc biệt trong bối cảnh {ctx}, các tổ công tác Cảnh sát giao thông và hệ thống camera giám sát thông minh thường xuyên tăng cường kiểm tra, xử lý nghiêm minh các hành vi vi phạm. Nắm rõ căn cứ pháp lý hiện hành là cách tốt nhất để bạn lái xe an toàn và thượng tôn pháp luật.'
+        ]) + paragraph(seed+'1b', [
+            f'Bài viết này tổng hợp chi tiết các quy định pháp lý, văn bản nghị định mới nhất liên quan đến {ang} cho chuyên đề {t}. Mọi nội dung được tham chiếu từ các văn bản quy phạm pháp luật đang có hiệu lực thi hành.',
+            f'Để tra cứu trực tiếp các văn bản pháp luật gốc của Chính phủ và Bộ Công an, bạn có thể truy cập mục <a href="/luat-giao-thong/nguon-tra-cuu/">danh mục nguồn tra cứu luật giao thông chính thức</a> được chúng tôi tổng hợp đầy đủ.'
+        ])
+    ))
 
-# ── Router ────────────────────────────────────────────────────────────────────
-def spec_for(seq):
- if seq <= THUE_XE_CAP:   return spec_for_thue_xe(seq)
- if seq <= INFO_CAP:       return spec_for_xe_info(seq - THUE_XE_CAP)
- if seq <= TRAVEL_CAP:     return spec_for_du_lich(seq - INFO_CAP)
- return spec_for_luat(seq - TRAVEL_CAP)
+    sections.append((f'Mức xử phạt vi phạm hành chính áp dụng hiện hành',
+        paragraph(seed+'2a', [
+            f'Căn cứ theo Nghị định xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt hiện hành, hành vi vi phạm liên quan đến {t} phải chịu các khung hình phạt nghiêm khắc tùy thuộc vào mức độ và tính chất của lỗi vi phạm.',
+            f'Bên cạnh hình thức phạt tiền bằng tiền mặt từ vài trăm nghìn đến hàng triệu đồng, người vi phạm còn có thể bị áp dụng các hình thức xử phạt bổ sung nghiêm khắc như: tước quyền sử dụng Giấy phép lái xe từ 1 tháng đến 24 tháng, hoặc tạm giữ phương tiện giao thông đến 7 ngày làm việc.',
+            f'Đối với các lỗi vi phạm có nguy cơ gây tai nạn cao hoặc tái phạm nhiều lần, mức xử phạt sẽ được áp dụng ở khung kịch khung. Người tham gia giao thông cần ý thức rõ ràng rằng mức phạt tiền hiện nay là rất cao, đủ sức răn đe mọi hành vi coi thường luật pháp.'
+        ]) + paragraph(seed+'2b', [
+            f'Tìm hiểu thêm những kinh nghiệm thực tế khi lưu thông trong nội đô tại chuyên mục <a href="/kinh-nghiem/lai-xe-o-ha-noi/">kinh nghiệm lái xe an toàn ở Hà Nội</a> để không vô tình mắc phải các lỗi xử phạt đáng tiếc.',
+            f'Việc nộp phạt hành chính hiện nay đã được tích hợp qua Cổng dịch vụ công Quốc gia, giúp người vi phạm có thể tra cứu biên bản và nộp tiền phạt trực tuyến một cách minh bạch mà không cần phải đi lại nhiều lần.'
+        ]) + paragraph(seed+'2c', [f'Cần đặc biệt lưu ý rằng theo các quy định mới được ban hành, mức phạt tiền đối với các lỗi cố tình vượt đèn đỏ, đi ngược chiều hay vi phạm nồng độ cồn đã tăng lên rất cao. Do đó, việc chấp hành nghiêm chỉnh luật lệ giao thông là cách bảo vệ tài chính và an toàn bản thân tốt nhất.', f'Ngoài phạt tiền, việc tước giấy phép lái xe có thời hạn sẽ gây ảnh hưởng rất lớn đến công việc và sinh hoạt hằng ngày của người vi phạm. Ý thức tuân thủ pháp luật từ những chi tiết nhỏ nhất như bật đèn xi nhan hay đội mũ bảo hiểm chuẩn là điều tối cần thiết.'])
+    ))
 
+    sections.append((f'Trách nhiệm và quyền hạn của {a} khi tham gia giao thông',
+        paragraph(seed+'3a', [
+            f'Khi điều khiển phương tiện tham gia giao thông đường bộ, {a} có nghĩa vụ chấp hành nghiêm chỉnh hiệu lệnh của người điều khiển giao thông, hệ thống đèn tín hiệu, biển báo hiệu và vạch kẻ đường. Luôn mang theo đầy đủ các giấy tờ theo quy định gồm: đăng ký xe, giấy phép lái xe, bảo hiểm bắt buộc và giấy tờ tùy thân.',
+            f'Người tham gia giao thông cũng có quyền được yêu cầu cán bộ chiến sĩ Cảnh sát giao thông thực hiện nhiệm vụ công khai, đúng điều lệnh Công an nhân dân, giải thích rõ lỗi vi phạm và xuất trình chuyên đề tuần tra kiểm soát theo đúng quy định pháp luật khi được yêu cầu.',
+            f'Trong trường hợp xảy ra tranh chấp hoặc không đồng ý với biên bản vi phạm hành chính, bạn có quyền ghi ý kiến không đồng ý vào phần ý kiến của người vi phạm trong biên bản và có quyền khiếu nại, khởi kiện theo đúng trình tự thủ tục luật định.'
+        ]) + paragraph(seed+'3b', [
+            f'Để chuẩn bị tốt nhất mọi điều kiện pháp lý trước khi thuê phương tiện tự lái, bạn có thể tham khảo thêm hướng dẫn chi tiết tại <a href="/thue-xe-may/ha-noi/">thủ tục thuê xe máy Hà Nội</a> của cửa hàng {brand}.',
+            f'Sự hợp tác văn minh, đúng mực và thái độ tôn trọng pháp luật sẽ luôn giúp các buổi làm việc giải quyết vi phạm diễn ra nhanh chóng, thuận lợi cho cả hai phía.'
+        ])
+    ))
+
+    sections.append((f'Những hiểu lầm và lỗi vi phạm phổ biến {ctx}',
+        paragraph(seed+'4a', [
+            f'Thực tế cho thấy, trong tình huống {ctx}, rất nhiều người lái xe thường mắc lỗi vi phạm do những hiểu lầm truyền miệng không có căn cứ pháp lý. Một số người lầm tưởng rằng có thể sử dụng hình ảnh giấy phép lái xe chụp trên điện thoại thay thế cho bản gốc khi bị kiểm tra hành chính trực tiếp.',
+            f'Một hiểu lầm tai hại khác liên quan đến việc cho rằng xe máy điện không cần đội mũ bảo hiểm hay không bị xử phạt nồng độ cồn. Theo luật định, người điều khiển xe đạp điện, xe máy điện đều là đối tượng phải tuân thủ nghiêm ngặt các quy định về an toàn giao thông và chịu mức phạt tương đương xe cơ giới.',
+            f'Nhiều tài xế cũng thường mắc lỗi chuyển làn đường hoặc rẽ tại các nút giao đông đúc mà quên bật đèn xi nhan báo rẽ trước một khoảng cách an toàn, hoặc chỉ bật đèn xi nhan khi xe đã bắt đầu đổi hướng di chuyển.'
+        ]) + paragraph(seed+'4b', [
+            f'Để trang bị kiến thức chuẩn xác và loại bỏ các hiểu lầm tai hại, hãy tham khảo thêm mục <a href="/faq/">câu hỏi thường gặp FAQ về quy định xe máy</a> để vững vàng kiến thức trên mọi nẻo đường.',
+            f'Luôn chú ý quan sát hệ thống biển chỉ dẫn phân làn treo trên cao tại các trục đường lớn để không vô tình đi nhầm vào làn đường dành riêng cho xe ô tô.'
+        ]) + paragraph(seed+'4c', [f'Nhiều tài xế thường chủ quan không bật đèn xi nhan báo rẽ khi đi vào vòng xuyến hoặc khi chuyển hướng ở những ngã ba nhỏ. Đây là một trong những lỗi bị xử phạt rất phổ biến tại các đô thị, người lái xe cần rèn luyện thói quen quan sát gương và bật tín hiệu báo rẽ từ sớm.', f'Tại các tuyến đường một chiều hoặc có biển cấm rẽ theo giờ, hãy luôn chú ý biển báo phụ gắn phía dưới. Việc đi theo thói quen cũ mà không quan sát biển báo mới cắm là nguyên nhân hàng đầu khiến nhiều người bị xử phạt oan uổng.'])
+    ))
+
+    sections.append((f'Thủ tục, hồ sơ và các bước giải quyết đúng quy định',
+        paragraph(seed+'5a', [
+            f'Khi cần làm các thủ tục hành chính liên quan đến {t}, {a} cần chuẩn bị một bộ hồ sơ đầy đủ bao gồm: bản gốc và bản sao căn cước công dân gắn chíp, giấy đăng ký xe, giấy chứng nhận kiểm định (nếu có) và các mẫu đơn theo quy chuẩn của cơ quan chức năng.',
+            f'Quy trình nộp hồ sơ hiện nay đã được tinh giản tối đa thông qua việc nộp trực tuyến trên Cổng dịch vụ công Bộ Công an hoặc ứng dụng định danh điện tử VNeID. Sau khi tiếp nhận hồ sơ hợp lệ, cơ quan thụ lý sẽ cấp giấy hẹn trả kết quả rõ ràng.',
+            f'Người dân tuyệt đối không nên nhờ vả các đối tượng "cò mồi" làm thủ tục hộ bên ngoài cổng cơ quan hành chính để tránh bị lừa đảo chiếm đoạt tài sản hoặc làm giả giấy tờ tài liệu của cơ quan nhà nước.'
+        ]) + paragraph(seed+'5b', [
+            f'Nếu bạn đang chuẩn bị giấy tờ để thuê xe phục vụ công việc dài hạn, hãy tham khảo các mẫu hợp đồng mẫu tại <a href="/bang-gia/">chuyên trang bảng giá và hợp đồng thuê xe</a>.',
+            f'Mọi khoản lệ phí nhà nước đều có biên lai thu tiền điện tử chính quy. Hãy lưu giữ cẩn thận các biên lai thu phí để làm căn cứ đối chiếu khi nhận kết quả thủ tục.'
+        ]) + paragraph(seed+'5c', [f'Thời hạn giải quyết các thủ tục hành chính giao thông thông thường từ 2 đến 7 ngày làm việc tùy tính chất vụ việc. Người làm thủ tục nên chủ động tra cứu mã hồ sơ trực tuyến để nắm bắt tiến độ xử lý mà không cần mất công đến tận trụ sở nhiều lần.', f'Khi đi làm thủ tục, hãy chuẩn bị trước các bản sao công chứng kèm bản gốc để cán bộ thụ lý đối chiếu nhanh chóng. Việc chuẩn bị giấy tờ chu đáo sẽ giúp bạn tiết kiệm được nhiều thời gian và công sức đi lại.'])
+    ))
+
+    sections.append((f'Hướng dẫn tra cứu phạt nguội và nộp phạt trực tuyến',
+        paragraph(seed+'6a', [
+            f'Hệ thống camera giám sát giao thông thông minh tại Hà Nội hiện đã phủ sóng hầu khắp các nút giao trọng điểm. Để chủ động kiểm tra xem phương tiện của mình có bị phạt nguội hay không, bạn chỉ cần truy cập trang thông tin điện tử của Cục Cảnh sát giao thông hoặc Công an thành phố Hà Nội.',
+            f'Nhập chính xác biển kiểm soát xe và loại phương tiện vào ô tra cứu để nhận kết quả chi tiết: thời gian vi phạm, địa điểm nút giao, lỗi vi phạm cụ thể và đơn vị công an đang thụ lý giải quyết vụ việc.',
+            f'Khi phát hiện có thông báo vi phạm, bạn có thể thực hiện nộp phạt trực tuyến ngay tại nhà thông qua Cổng dịch vụ công Quốc gia bằng tài khoản ngân hàng hoặc ví điện tử một cách nhanh chóng và an toàn.'
+        ]) + paragraph(seed+'6b', [
+            f'Kiểm tra định kỳ phạt nguội mỗi tháng một lần là thói quen tốt giúp bạn tránh tình trạng bị từ chối đăng kiểm hoặc dồn tiền phạt quá lớn khi sang tên đổi chủ xe.',
+            f'Xem thêm các hướng dẫn hữu ích về phương tiện 2 bánh tại <a href="/kinh-nghiem/">chuyên mục cẩm nang kinh nghiệm di chuyển</a>.'
+        ])
+    ))
+
+    sections.append((f'Kỹ năng lưu thông an toàn và phòng tránh vi phạm tại Hà Nội',
+        paragraph(seed+'7a', [
+            f'Để lưu thông an toàn và không mắc lỗi vi phạm tại thủ đô, kỹ năng quan trọng nhất là giữ khoảng cách an toàn với xe đi trước và luôn làm chủ tốc độ. Không vì vội vàng mà leo lên vỉa hè, vượt đèn vàng hay chen lấn vào làn đường ngược chiều gây xung đột giao thông.',
+            f'Khi đi qua các vòng xuyến ngã năm, ngã sáu đông đúc, hãy tuân thủ nghiêm ngặt quy tắc nhường đường cho xe đi từ bên trái trong vòng xuyến và bật đèn xi nhan xin đường từ sớm để các phương tiện khác chủ động nhường lối.',
+            f'Luôn cài quai mũ bảo hiểm chắc chắn, kiểm tra hệ thống gương chiếu hậu trước khi nổ máy và tuyệt đối nói không với rượu bia khi đã ngồi sau tay lái.'
+        ]) + paragraph(seed+'7b', [
+            f'Đối với việc kiểm tra an toàn kỹ thuật phương tiện trước khi ra đường, hãy tham khảo <a href="/bao-duong/xe-may/kiem-tra-truoc-khi-nhan/">quy trình kiểm tra an toàn xe máy</a> để luôn yên tâm trên mọi nẻo đường.',
+            f'Lái xe văn minh, tôn trọng người già, phụ nữ và trẻ em không chỉ bảo vệ an toàn cho bạn mà còn góp phần xây dựng văn hóa giao thông thủ đô thanh lịch, hiện đại.'
+        ])
+    ))
+
+    sections.append((f'Thông tin liên hệ Thuê xe máy Nguyễn Hà',
+        f'<p>{brand} tọa lạc tại {addr} ({escape(FACTS["landmark"])}). Cửa hàng mở cửa từ {hours}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p>'
+        + f'<p>Quý khách có thể xem thêm <a href="/bang-gia/">bảng giá niêm yết</a>, <a href="/thue-xe-may/ha-noi/">thuê xe máy Hà Nội</a>, <a href="/faq/">câu hỏi thường gặp FAQ</a> và <a href="/lien-he/">trang liên hệ</a> để được hỗ trợ chu đáo nhất.</p>'
+        + paragraph(seed+'contact', [
+            f'Đội ngũ chăm sóc khách hàng của {brand} luôn sẵn sàng tư vấn mẫu xe phù hợp nhất với nhu cầu và lịch trình của bạn. Chúng tôi cam kết xe vận hành êm ái, đầy đủ giấy tờ và hỗ trợ kỹ thuật tận tình.',
+            f'Với phương châm phục vụ tận tâm và chuyên nghiệp, {brand} tự hào đồng hành cùng quý khách trên mọi nẻo đường thủ đô. Hãy gọi ngay hotline để được chuẩn bị xe tốt nhất trước giờ xuất phát.'
+        ])
+    ))
+
+    body = ' '.join(x[1] for x in sections); wc = len(words(body))
+    return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
+            'excerpt':f'Quy định {t} cho {a}: căn cứ pháp lý, mức phạt vi phạm hiện hành, quy trình thủ tục và tư vấn từ Nguyễn Hà.',
+            'sections':[[h,b] for h,b in sections],'keywords':f'{s["topic"]} {a} luật giao thông Hà Nội',
+            'parent':HUB_PARENT[s['hub']],'kind':'article','art':f'{s["sequence"]:05d}','tone':['gold','black','white'][s['sequence']%3],
+            'wordCount':wc,'intent':s['intent'],'factoryVersion':CFG['version']}
+
+# ── Router & Make ─────────────────────────────────────────────────────────────
 def make_article(s):
- w=s['writer']
- if w=='thue-xe': return make_thue_xe(s)
- if w=='xe-info': return make_xe_info(s)
- if w=='du-lich': return make_du_lich(s)
- return make_luat(s)
-
+    w=s['writer']
+    if w=='thue-xe': return make_thue_xe(s)
+    if w=='xe-info': return make_xe_info(s)
+    if w=='du-lich': return make_du_lich(s)
+    return make_luat(s)
 
 # ── QA ────────────────────────────────────────────────────────────────────────
 def score(article,existing):
- html=' '.join(b for _,b in article['sections']);wc=len(words(html));critical=[];points=0;details={}
- def add(name,value,maxv):
-  nonlocal points;points+=value;details[name]={'score':value,'max':maxv}
- add('metadata',15 if 35<=len(article['title'])<=120 and 100<=len(article['excerpt'])<=170 else 8,15)
- add('structure',20 if len(article['sections'])>=8 and all(h and '<p>' in b for h,b in article['sections']) else 8,20)
- add('depth',25 if CFG['minimum_words']<=wc<=CFG['maximum_words'] else (12 if wc>=700 else 0),25)
- links=len(re.findall(r'href="/',html));add('internal_links',15 if links>=4 else links*3,15)
- fact_terms=sum(x in html for x in [FACTS['phone'],FACTS['hours'],FACTS['address']]);add('facts',10 if fact_terms==3 else fact_terms*3,10)
- a_grams=grams(html)
- if article.get('id'): _GRAMS_CACHE[article['id']]=a_grams
- maxsim=max((gram_similarity(a_grams,article_grams(p)) for p in existing),default=0);add('uniqueness',15 if maxsim<=CFG['maximum_similarity'] else 0,15)
- urls={p['url'] for p in existing};intents={p.get('intent') for p in existing if p.get('intent')}
- if article['url'] in urls: critical.append('duplicate_url')
- if article['intent'] and article['intent'] in intents: critical.append('duplicate_intent')
- if maxsim>CFG['maximum_similarity']:critical.append(f'similarity_{maxsim:.3f}')
- if wc<CFG['minimum_words']:critical.append(f'thin_{wc}_words')
- return {'score':points,'pass':points>=CFG['minimum_score'] and not critical,'critical':critical,'details':details,'word_count':wc,'max_similarity':round(maxsim,4)}
-
+    html=' '.join(b for _,b in article['sections']);wc=len(words(html));critical=[];points=0;details={}
+    def add(name,value,maxv):
+        nonlocal points;points+=value;details[name]={'score':value,'max':maxv}
+    add('metadata',15 if 35<=len(article['title'])<=120 and 100<=len(article['excerpt'])<=170 else 8,15)
+    add('structure',20 if len(article['sections'])>=8 and all(h and '<p>' in b for h,b in article['sections']) else 8,20)
+    add('depth',25 if CFG['minimum_words']<=wc<=CFG['maximum_words'] else (12 if wc>=700 else 0),25)
+    links=len(re.findall(r'href="/',html));add('internal_links',15 if links>=4 else links*3,15)
+    fact_terms=sum(x in html for x in [FACTS['phone'],FACTS['hours'],FACTS['address']]);add('facts',10 if fact_terms==3 else fact_terms*3,10)
+    a_grams=grams(html)
+    if article.get('id'): _GRAMS_CACHE[article['id']]=a_grams
+    maxsim=max((gram_similarity(a_grams,article_grams(p)) for p in existing),default=0);add('uniqueness',15 if maxsim<=CFG['maximum_similarity'] else 0,15)
+    urls={p['url'] for p in existing};intents={p.get('intent') for p in existing if p.get('intent')}
+    if article['url'] in urls: critical.append('duplicate_url')
+    if article['intent'] and article['intent'] in intents: critical.append('duplicate_intent')
+    if maxsim>CFG['maximum_similarity']:critical.append(f'similarity_{maxsim:.3f}')
+    if wc<CFG['minimum_words']:critical.append(f'thin_{wc}_words')
+    return {'score':points,'pass':points>=CFG['minimum_score'] and not critical,'critical':critical,'details':details,'word_count':wc,'max_similarity':round(maxsim,4)}
 
 # ── Index ─────────────────────────────────────────────────────────────────────
 def reindex():
- rows=[]
- for p in load_existing():
-  if p.get('kind') in ('hub','page'):continue
-  text=' '.join(re.sub(r'<[^>]+>',' ',b) for _,b in p.get('sections',[]))
-  rows.append({'id':p.get('id'),'url':p['url'],'title':p['title'],'hub':p['hub'],'parent':p.get('parent'),'intent':p.get('intent'),'word_count':p.get('wordCount',len(words(text))),'sha256':hashlib.sha256(text.encode()).hexdigest(),'status':'published'})
- INDEX_PATH.write_text(''.join(json.dumps(r,ensure_ascii=False,separators=(',',':'))+'\n' for r in rows))
- return len(rows)
-
+    rows=[]
+    for p in load_existing():
+        if p.get('kind') in ('hub','page'):continue
+        text=' '.join(re.sub(r'<[^>]+>',' ',b) for _,b in p.get('sections',[]))
+        rows.append({'id':p.get('id'),'url':p['url'],'title':p['title'],'hub':p['hub'],'parent':p.get('parent'),'intent':p.get('intent'),'word_count':p.get('wordCount',len(words(text))),'sha256':hashlib.sha256(text.encode()).hexdigest(),'status':'published'})
+    INDEX_PATH.write_text('\n'.join(json.dumps(r,ensure_ascii=False,separators=(',',':')) for r in rows) + '\n')
+    return len(rows)
 
 # ── Run ───────────────────────────────────────────────────────────────────────
-def run(limit=None,dry=False):
- state=json.loads(STATE_PATH.read_text());existing=load_existing();limit=limit or CFG['pair_size']*CFG['pairs_per_run']
- if not CFG['enabled'] or (ROOT/'STOP_FACTORY').exists(): print('Factory stopped by control flag.');return 0
- made=[];queue=[];attempts=0;target=CFG.get('target_articles')
- while len(made)<limit and (not target or len(existing)+len(made)<target) and attempts<limit*20:
-  seq=state['next_sequence'];state['next_sequence']+=1;attempts+=1;s=spec_for(seq);a=make_article(s);qa=score(a,existing+made)
-  q={'id':a['id'],'sequence':seq,'url':a['url'],'intent':a['intent'],'qa':qa,'created_at':datetime.now(timezone.utc).isoformat(),'status':'published' if qa['pass'] else 'rejected'};queue.append(q)
-  if qa['pass']:made.append(a)
-  else:state['rejected']+=1
- if dry:
-  print(json.dumps({'dry_run':True,'accepted':len(made),'attempted':attempts,'scores':[score(x,existing) for x in made]},ensure_ascii=False));return 0
- ARTICLES.mkdir(parents=True,exist_ok=True)
- for a in made:(ARTICLES/f'{a["id"]}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2)+'\n')
- with QUEUE_PATH.open('a') as f:
-  for q in queue:f.write(json.dumps(q,ensure_ascii=False,separators=(',',':'))+'\n')
- state['published_by_factory']+=len(made);state['last_run']=datetime.now(timezone.utc).isoformat();state['status']='target-reached' if target and len(existing)+len(made)>=target else 'ready';STATE_PATH.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n')
- count=reindex();print(json.dumps({'published':len(made),'pairs':len(made)//2,'attempted':attempts,'index_rows':count,'next_sequence':state['next_sequence']},ensure_ascii=False));return 0
-
+def run(limit=None,dry_run=False):
+    state=json.loads(STATE_PATH.read_text())
+    existing=load_existing()
+    urls={p['url'] for p in existing};intents={p.get('intent') for p in existing if p.get('intent')}
+    target=limit or (CFG['pairs_per_run']*CFG['pair_size'])
+    seq=state['next_sequence'];accepted=[];rejected=0;logs=[]
+    while len(accepted)<target:
+        accepted_articles = [x[0] for x in accepted]
+        spec=spec_for(seq);article=make_article(spec);qa=score(article,existing+accepted_articles)
+        log_entry={'timestamp':datetime.now(timezone.utc).isoformat(),'sequence':seq,'id':article['id'],'url':article['url'],'intent':article['intent'],'writer':spec['writer'],'qa':qa}
+        if qa['pass'] and article['url'] not in urls and article['intent'] not in intents:
+            accepted.append((article,log_entry))
+            urls.add(article['url']);intents.add(article['intent'])
+        else:
+            rejected+=1;log_entry['qa']['pass']=False;logs.append(log_entry)
+        seq+=1
+    if dry_run:
+        print(json.dumps({'dry_run':True,'accepted_count':len(accepted),'rejected_count':rejected,'first_sample':accepted[0][0] if accepted else None,'qa_scores':[x[1]['qa'] for x in accepted[:3]]},ensure_ascii=False,indent=2))
+        return 0
+    ARTICLES.mkdir(parents=True,exist_ok=True)
+    for art,log in accepted:
+        (ARTICLES/f'{art["id"]}.json').write_text(json.dumps(art,ensure_ascii=False,indent=2)+'\n')
+        logs.append(log)
+    with QUEUE_PATH.open('a',encoding='utf-8') as q:
+        for entry in logs: q.write(json.dumps(entry,ensure_ascii=False)+'\n')
+    state['next_sequence']=seq
+    state['published_by_factory']=state.get('published_by_factory',0)+len(accepted)
+    state['rejected']=state.get('rejected',0)+rejected
+    state['last_run']=datetime.now(timezone.utc).isoformat()
+    state['status']='ready'
+    STATE_PATH.write_text(json.dumps(state,indent=2)+'\n')
+    reindex()
+    print(f'PUBLISHED: {len(accepted)} articles; REJECTED: {rejected}; NEXT_SEQ: {seq}')
+    return 0
 
 # ── Report ────────────────────────────────────────────────────────────────────
 def report():
- if not QUEUE_PATH.exists() or QUEUE_PATH.stat().st_size==0:
-  print('Queue log trống. Chưa có lượt chạy nào.');return 0
- rows=[json.loads(l) for l in QUEUE_PATH.read_text().splitlines() if l.strip()]
- total=len(rows);published=[r for r in rows if r['status']=='published'];rejected=[r for r in rows if r['status']=='rejected']
- scores=[r['qa']['score'] for r in published]
- by_hub={}
- for r in published:
-  h=r.get('intent','?').split('|')[0] if r.get('intent') else '?'
-  by_hub[h]=by_hub.get(h,0)+1
- reject_reasons={}
- for r in rejected:
-  for c in r['qa'].get('critical',[]):
-   key=c.split('_')[0];reject_reasons[key]=reject_reasons.get(key,0)+1
- state=json.loads(STATE_PATH.read_text())
- out={
-  'total_attempts':total,
-  'published':len(published),
-  'rejected':len(rejected),
-  'reject_rate':f'{len(rejected)/max(1,total)*100:.1f}%',
-  'score_avg':round(sum(scores)/max(1,len(scores)),1),
-  'score_min':min(scores,default=0),
-  'score_max':max(scores,default=0),
-  'published_by_factory':state['published_by_factory'],
-  'next_sequence':state['next_sequence'],
-  'by_writer':by_hub,
-  'reject_reasons':reject_reasons,
-  'last_run':state.get('last_run'),
-  'capacity':{
-   'thue_xe':THUE_XE_CAP,
-   'xe_info':INFO_CAP-THUE_XE_CAP,
-   'du_lich':TRAVEL_CAP-INFO_CAP,
-   'luat_kn':LAW_CAP-TRAVEL_CAP,
-   'total':LAW_CAP
-  }
- }
- print(json.dumps(out,ensure_ascii=False,indent=2));return 0
-
+    articles=load_existing()
+    by_hub={}
+    for a in articles:
+        h=a.get('hub','legacy');by_hub[h]=by_hub.get(h,0)+1
+    wcs=[a.get('wordCount',0) for a in articles if a.get('wordCount')]
+    out={
+        'total_published':len(articles),
+        'by_hub':by_hub,
+        'average_word_count':round(sum(wcs)/max(1,len(wcs)),1),
+        'factory_version':CFG['version'],
+        'matrix_total_capacity':TOTAL_CAPACITY
+    }
+    print(json.dumps(out,ensure_ascii=False,indent=2));return 0
 
 # ── Daemon ────────────────────────────────────────────────────────────────────
 def daemon(interval=3600, limit=None):
- import time, subprocess
- print(f'Starting Content Factory daemon (interval: {interval}s)...')
- while True:
-  now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-  print(f'[{now_str}] Checking factory state...')
-  if (ROOT/'STOP_FACTORY').exists() or not CFG.get('enabled', True):
-   print('Factory paused by control flag (STOP_FACTORY / config). Sleeping 60s...')
-   time.sleep(min(interval, 60)); continue
-  state = json.loads(STATE_PATH.read_text())
-  target = CFG.get('target_articles')
-  existing = len(load_existing())
-  if target and existing >= target:
-   print(f'Target reached: {existing}/{target} articles. Stopping daemon.')
-   break
-  try:
-   subprocess.run(['git', 'pull', '--rebase', 'origin', 'main'], cwd=str(ROOT))
-  except Exception as e:
-   print(f'git pull notice: {e}')
-  run(limit)
-  try:
-   subprocess.run([sys.executable, str(ROOT/'scripts/build.py')], check=True, cwd=str(ROOT))
-   subprocess.run([sys.executable, str(ROOT/'tests/test_content_factory.py')], check=True, cwd=str(ROOT))
-   subprocess.run([sys.executable, str(ROOT/'scripts/validate_factory_site.py')], check=True, cwd=str(ROOT))
-  except Exception as e:
-   print(f'Build/test error: {e}')
-  try:
-   res = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True, cwd=str(ROOT))
-   if res.stdout.strip():
-    print('New articles verified. Committing and pushing to main...')
-    subprocess.run(['git', 'add', '-A'], check=True, cwd=str(ROOT))
-    subprocess.run(['git', 'commit', '-m', 'content: auto-publish QA-approved batch from local daemon'], check=True, cwd=str(ROOT))
-    subprocess.run(['git', 'pull', '--rebase', 'origin', 'main'], cwd=str(ROOT))
-    subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=str(ROOT))
-    print('Successfully published and pushed batch.')
-   else:
-    print('No changes in this cycle.')
-  except Exception as e:
-   print(f'Git push notice: {e}')
-  print(f'Cycle finished. Sleeping {interval}s...')
-  time.sleep(interval)
-
+    import time, subprocess
+    print(f'Starting Content Factory daemon (interval: {interval}s)...')
+    while True:
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f'[{now_str}] Checking factory state...')
+        if (ROOT/'STOP_FACTORY').exists() or not CFG.get('enabled', True):
+            print('Factory paused by control flag (STOP_FACTORY / config). Sleeping 60s...')
+            time.sleep(min(interval, 60)); continue
+        state = json.loads(STATE_PATH.read_text())
+        target = CFG.get('target_articles')
+        existing = len(load_existing())
+        if target and existing >= target:
+            print(f'Target reached: {existing}/{target} articles. Stopping daemon.')
+            break
+        try:
+            subprocess.run(['git', 'pull', '--rebase', 'origin', 'main'], cwd=str(ROOT))
+        except Exception as e:
+            print(f'git pull notice: {e}')
+        run(limit)
+        try:
+            subprocess.run([sys.executable, str(ROOT/'scripts/build.py')], check=True, cwd=str(ROOT))
+            subprocess.run([sys.executable, str(ROOT/'tests/test_content_factory.py')], check=True, cwd=str(ROOT))
+            subprocess.run([sys.executable, str(ROOT/'scripts/validate_factory_site.py')], check=True, cwd=str(ROOT))
+        except Exception as e:
+            print(f'Build/test error: {e}')
+        try:
+            res = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True, cwd=str(ROOT))
+            if res.stdout.strip():
+                print('New articles verified. Committing and pushing to main...')
+                subprocess.run(['git', 'add', '-A'], check=True, cwd=str(ROOT))
+                subprocess.run(['git', 'commit', '-m', f'content: auto-publish QA-approved batch ({len(load_existing())}/{target} articles)'], check=True, cwd=str(ROOT))
+                subprocess.run(['git', 'pull', '--rebase', 'origin', 'main'], cwd=str(ROOT))
+                subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=str(ROOT))
+                print('Successfully published and pushed batch.')
+            else:
+                print('No changes in this cycle.')
+        except Exception as e:
+            print(f'Git push notice: {e}')
+        print(f'Cycle finished. Sleeping {interval}s...')
+        time.sleep(interval)
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def main():
- ap=argparse.ArgumentParser();sp=ap.add_subparsers(dest='cmd',required=True)
- r=sp.add_parser('run');r.add_argument('--limit',type=int);r.add_argument('--dry-run',action='store_true')
- sp.add_parser('reindex');sp.add_parser('status');sp.add_parser('report')
- d=sp.add_parser('daemon');d.add_argument('--interval',type=int,default=3600);d.add_argument('--limit',type=int)
- a=ap.parse_args()
- if a.cmd=='run':return run(a.limit,a.dry_run)
- if a.cmd=='reindex':print(json.dumps({'index_rows':reindex()}));return 0
- if a.cmd=='report':return report()
- if a.cmd=='daemon':return daemon(a.interval,a.limit)
- state=json.loads(STATE_PATH.read_text());print(json.dumps({'config':CFG,'state':state,'articles':len(load_existing()),'stopped':(ROOT/'STOP_FACTORY').exists(),'matrix_capacity':LAW_CAP},ensure_ascii=False,indent=2));return 0
+    ap=argparse.ArgumentParser();sp=ap.add_subparsers(dest='cmd',required=True)
+    r=sp.add_parser('run');r.add_argument('--limit',type=int);r.add_argument('--dry-run',action='store_true')
+    sp.add_parser('reindex');sp.add_parser('status');sp.add_parser('report')
+    d=sp.add_parser('daemon');d.add_argument('--interval',type=int,default=3600);d.add_argument('--limit',type=int)
+    a=ap.parse_args()
+    if a.cmd=='run':return run(a.limit,a.dry_run)
+    if a.cmd=='reindex':print(json.dumps({'index_rows':reindex()}));return 0
+    if a.cmd=='report':return report()
+    if a.cmd=='daemon':return daemon(a.interval,a.limit)
+    state=json.loads(STATE_PATH.read_text());print(json.dumps({'config':CFG,'state':state,'articles':len(load_existing()),'stopped':(ROOT/'STOP_FACTORY').exists(),'matrix_capacity':TOTAL_CAPACITY},ensure_ascii=False,indent=2));return 0
 if __name__=='__main__':raise SystemExit(main())

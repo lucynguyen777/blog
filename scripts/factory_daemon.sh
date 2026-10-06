@@ -26,7 +26,7 @@ while true; do
   echo "1. Đồng bộ git..."
   git pull --rebase origin main || true
 
-  # 2. Sinh bài (10 cặp = 20 bài)
+  # 2. Sinh bài (50 cặp = 100 bài)
   echo "2. Chạy content factory..."
   python3 scripts/content_factory.py run || true
 
