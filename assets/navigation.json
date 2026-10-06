@@ -1,222 +1,252 @@
-[
-  {
-    "slug": "thue-xe",
-    "label": "Thuê xe",
-    "url": "/thue-xe/",
-    "description": "Bảng giá, thủ tục và lựa chọn xe cho từng hành trình.",
-    "children": [
-      {
-        "label": "Thuê xe máy Hà Nội",
-        "url": "/thue-xe-may/ha-noi/"
-      },
-      {
-        "label": "Thuê xe 50cc",
-        "url": "/thue-xe-50cc/ha-noi/"
-      },
-      {
-        "label": "Thuê xe điện",
-        "url": "/thue-xe-dien/ha-noi/"
-      },
-      {
-        "label": "Theo ngày, tuần, tháng",
-        "url": "/thue-xe-may/ha-noi/theo-thang/"
-      },
-      {
-        "label": "Bảng giá",
-        "url": "/bang-gia/"
-      }
-    ]
-  },
-  {
-    "slug": "xe-may",
-    "label": "Xe máy",
-    "url": "/xe-may/",
-    "description": "Tìm hiểu xe số, xe ga và các mẫu xe quen thuộc.",
-    "children": [
-      {
-        "label": "Honda",
-        "url": "/xe-may/#muc-1"
-      },
-      {
-        "label": "Yamaha",
-        "url": "/xe-may/#muc-2"
-      },
-      {
-        "label": "Xe số & xe ga",
-        "url": "/xe-may/#muc-3"
-      },
-      {
-        "label": "Đánh giá & so sánh",
-        "url": "/xe-may/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "xe-dien",
-    "label": "Xe điện",
-    "url": "/xe-dien/",
-    "description": "Pin, sạc và những điều cần biết khi sử dụng xe điện.",
-    "children": [
-      {
-        "label": "Xe máy điện",
-        "url": "/xe-dien/#muc-1"
-      },
-      {
-        "label": "Xe đạp điện",
-        "url": "/xe-dien/#muc-2"
-      },
-      {
-        "label": "Pin & sạc",
-        "url": "/xe-dien/#muc-3"
-      },
-      {
-        "label": "Đánh giá & so sánh",
-        "url": "/xe-dien/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "xe-dap",
-    "label": "Xe đạp",
-    "url": "/xe-dap/",
-    "description": "Chọn xe và chuẩn bị cho những chuyến đi bằng sức mình.",
-    "children": [
-      {
-        "label": "Xe phổ thông",
-        "url": "/xe-dap/#muc-1"
-      },
-      {
-        "label": "Xe thể thao",
-        "url": "/xe-dap/#muc-2"
-      },
-      {
-        "label": "Xe địa hình",
-        "url": "/xe-dap/#muc-3"
-      },
-      {
-        "label": "Bảo dưỡng",
-        "url": "/xe-dap/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "o-to",
-    "label": "Ô tô",
-    "url": "/o-to/",
-    "description": "Kiến thức lựa chọn và sử dụng ô tô.",
-    "children": [
-      {
-        "label": "Hãng xe",
-        "url": "/o-to/#muc-1"
-      },
-      {
-        "label": "Đánh giá",
-        "url": "/o-to/#muc-2"
-      },
-      {
-        "label": "So sánh",
-        "url": "/o-to/#muc-3"
-      },
-      {
-        "label": "Kinh nghiệm sử dụng",
-        "url": "/o-to/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "bao-duong",
-    "label": "Sửa chữa & bảo dưỡng",
-    "url": "/bao-duong/",
-    "description": "Kiểm tra xe, nhận biết bất thường và chăm sóc định kỳ.",
-    "children": [
-      {
-        "label": "Xe máy",
-        "url": "/bao-duong/#muc-1"
-      },
-      {
-        "label": "Xe điện",
-        "url": "/bao-duong/#muc-2"
-      },
-      {
-        "label": "Xe đạp",
-        "url": "/bao-duong/#muc-3"
-      },
-      {
-        "label": "Ô tô",
-        "url": "/bao-duong/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "du-lich",
-    "label": "Du lịch Việt Nam",
-    "url": "/du-lich/",
-    "description": "Những điểm đến, lịch trình và cách di chuyển.",
-    "children": [
-      {
-        "label": "Hà Nội",
-        "url": "/du-lich/ha-noi/"
-      },
-      {
-        "label": "Miền Bắc",
-        "url": "/du-lich/#muc-2"
-      },
-      {
-        "label": "Miền Trung",
-        "url": "/du-lich/#muc-3"
-      },
-      {
-        "label": "Miền Nam",
-        "url": "/du-lich/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "luat-giao-thong",
-    "label": "Luật & bằng lái",
-    "url": "/luat-giao-thong/",
-    "description": "Tra cứu nguồn chính thức và chuẩn bị giấy tờ trước chuyến đi.",
-    "children": [
-      {
-        "label": "Bằng lái",
-        "url": "/luat-giao-thong/#muc-1"
-      },
-      {
-        "label": "Xe máy",
-        "url": "/luat-giao-thong/#muc-2"
-      },
-      {
-        "label": "Xe điện",
-        "url": "/luat-giao-thong/#muc-3"
-      },
-      {
-        "label": "Biển báo",
-        "url": "/luat-giao-thong/#muc-4"
-      }
-    ]
-  },
-  {
-    "slug": "kinh-nghiem",
-    "label": "Kinh nghiệm di chuyển",
-    "url": "/kinh-nghiem/",
-    "description": "Chọn phương tiện, chuẩn bị hành trình và đi lại an toàn.",
-    "children": [
-      {
-        "label": "Đi xe máy",
-        "url": "/kinh-nghiem/#muc-1"
-      },
-      {
-        "label": "Đi phượt",
-        "url": "/kinh-nghiem/#muc-2"
-      },
-      {
-        "label": "An toàn",
-        "url": "/kinh-nghiem/#muc-3"
-      },
-      {
-        "label": "Tuyến đường",
-        "url": "/kinh-nghiem/#muc-4"
-      }
-    ]
-  }
-]
+{
+  "primary": [
+    {
+      "label": "Trang chủ",
+      "url": "/"
+    },
+    {
+      "label": "Giới thiệu",
+      "url": "/gioi-thieu/"
+    }
+  ],
+  "hubs": [
+    {
+      "slug": "thue-xe",
+      "label": "Thuê xe",
+      "url": "/thue-xe/",
+      "description": "Bảng giá, thủ tục và lựa chọn xe cho từng hành trình.",
+      "children": [
+        {
+          "label": "Thuê xe máy Hà Nội",
+          "url": "/thue-xe-may/ha-noi/"
+        },
+        {
+          "label": "Thuê xe 50cc",
+          "url": "/thue-xe-50cc/ha-noi/"
+        },
+        {
+          "label": "Thuê xe điện",
+          "url": "/thue-xe-dien/ha-noi/"
+        },
+        {
+          "label": "Theo ngày, tuần, tháng",
+          "url": "/thue-xe-may/ha-noi/theo-thang/"
+        },
+        {
+          "label": "Bảng giá",
+          "url": "/bang-gia/"
+        }
+      ]
+    },
+    {
+      "slug": "xe-may",
+      "label": "Xe máy",
+      "url": "/xe-may/",
+      "description": "Tìm hiểu xe số, xe ga và các mẫu xe quen thuộc.",
+      "children": [
+        {
+          "label": "Honda",
+          "url": "/xe-may/#muc-1"
+        },
+        {
+          "label": "Yamaha",
+          "url": "/xe-may/#muc-2"
+        },
+        {
+          "label": "Xe số & xe ga",
+          "url": "/xe-may/#muc-3"
+        },
+        {
+          "label": "Đánh giá & so sánh",
+          "url": "/xe-may/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "xe-dien",
+      "label": "Xe điện",
+      "url": "/xe-dien/",
+      "description": "Pin, sạc và những điều cần biết khi sử dụng xe điện.",
+      "children": [
+        {
+          "label": "Xe máy điện",
+          "url": "/xe-dien/#muc-1"
+        },
+        {
+          "label": "Xe đạp điện",
+          "url": "/xe-dien/#muc-2"
+        },
+        {
+          "label": "Pin & sạc",
+          "url": "/xe-dien/#muc-3"
+        },
+        {
+          "label": "Đánh giá & so sánh",
+          "url": "/xe-dien/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "xe-dap",
+      "label": "Xe đạp",
+      "url": "/xe-dap/",
+      "description": "Chọn xe và chuẩn bị cho những chuyến đi bằng sức mình.",
+      "children": [
+        {
+          "label": "Xe phổ thông",
+          "url": "/xe-dap/#muc-1"
+        },
+        {
+          "label": "Xe thể thao",
+          "url": "/xe-dap/#muc-2"
+        },
+        {
+          "label": "Xe địa hình",
+          "url": "/xe-dap/#muc-3"
+        },
+        {
+          "label": "Bảo dưỡng",
+          "url": "/xe-dap/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "o-to",
+      "label": "Ô tô",
+      "url": "/o-to/",
+      "description": "Kiến thức lựa chọn và sử dụng ô tô.",
+      "children": [
+        {
+          "label": "Hãng xe",
+          "url": "/o-to/#muc-1"
+        },
+        {
+          "label": "Đánh giá",
+          "url": "/o-to/#muc-2"
+        },
+        {
+          "label": "So sánh",
+          "url": "/o-to/#muc-3"
+        },
+        {
+          "label": "Kinh nghiệm sử dụng",
+          "url": "/o-to/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "bao-duong",
+      "label": "Sửa chữa & bảo dưỡng",
+      "url": "/bao-duong/",
+      "description": "Kiểm tra xe, nhận biết bất thường và chăm sóc định kỳ.",
+      "children": [
+        {
+          "label": "Xe máy",
+          "url": "/bao-duong/#muc-1"
+        },
+        {
+          "label": "Xe điện",
+          "url": "/bao-duong/#muc-2"
+        },
+        {
+          "label": "Xe đạp",
+          "url": "/bao-duong/#muc-3"
+        },
+        {
+          "label": "Ô tô",
+          "url": "/bao-duong/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "du-lich",
+      "label": "Du lịch Việt Nam",
+      "url": "/du-lich/",
+      "description": "Những điểm đến, lịch trình và cách di chuyển.",
+      "children": [
+        {
+          "label": "Hà Nội",
+          "url": "/du-lich/ha-noi/"
+        },
+        {
+          "label": "Miền Bắc",
+          "url": "/du-lich/#muc-2"
+        },
+        {
+          "label": "Miền Trung",
+          "url": "/du-lich/#muc-3"
+        },
+        {
+          "label": "Miền Nam",
+          "url": "/du-lich/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "luat-giao-thong",
+      "label": "Luật & bằng lái",
+      "url": "/luat-giao-thong/",
+      "description": "Tra cứu nguồn chính thức và chuẩn bị giấy tờ trước chuyến đi.",
+      "children": [
+        {
+          "label": "Bằng lái",
+          "url": "/luat-giao-thong/#muc-1"
+        },
+        {
+          "label": "Xe máy",
+          "url": "/luat-giao-thong/#muc-2"
+        },
+        {
+          "label": "Xe điện",
+          "url": "/luat-giao-thong/#muc-3"
+        },
+        {
+          "label": "Biển báo",
+          "url": "/luat-giao-thong/#muc-4"
+        }
+      ]
+    },
+    {
+      "slug": "kinh-nghiem",
+      "label": "Kinh nghiệm di chuyển",
+      "url": "/kinh-nghiem/",
+      "description": "Chọn phương tiện, chuẩn bị hành trình và đi lại an toàn.",
+      "children": [
+        {
+          "label": "Đi xe máy",
+          "url": "/kinh-nghiem/#muc-1"
+        },
+        {
+          "label": "Đi phượt",
+          "url": "/kinh-nghiem/#muc-2"
+        },
+        {
+          "label": "An toàn",
+          "url": "/kinh-nghiem/#muc-3"
+        },
+        {
+          "label": "Tuyến đường",
+          "url": "/kinh-nghiem/#muc-4"
+        }
+      ]
+    }
+  ],
+  "support": [
+    {
+      "label": "FAQ",
+      "url": "/faq/"
+    },
+    {
+      "label": "Liên hệ",
+      "url": "/lien-he/"
+    },
+    {
+      "label": "Điều khoản dịch vụ",
+      "url": "/dieu-khoan-dich-vu/"
+    },
+    {
+      "label": "Chính sách bảo mật",
+      "url": "/chinh-sach-bao-mat/"
+    }
+  ]
+}
