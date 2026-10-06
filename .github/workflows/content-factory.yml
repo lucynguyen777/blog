@@ -1,0 +1,58 @@
+name: Continuous content factory
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: 'Số cặp, mỗi cặp 2 bài (mặc định 6)'
+        required: false
+        default: '6'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nguyen-ha-content-factory
+  cancel-in-progress: false
+
+jobs:
+  write-qa-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Resolve batch size
+        id: batch
+        shell: bash
+        run: |
+          pairs='${{ inputs.pairs }}'
+          if ! [[ "$pairs" =~ ^[1-6]$ ]]; then pairs=6; fi
+          echo "limit=$((pairs * 2))" >> "$GITHUB_OUTPUT"
+      - name: Stop check, queue, write and QA
+        run: python3 scripts/content_factory.py run --limit '${{ steps.batch.outputs.limit }}'
+      - name: Build site and derived indexes
+        run: python3 scripts/build.py
+      - name: Factory tests
+        run: python3 tests/test_content_factory.py
+      - name: Verify generated site
+        run: python3 scripts/validate_factory_site.py
+      - name: Commit one safe batch
+        shell: bash
+        run: |
+          if git diff --quiet && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
+            echo 'No publishable articles in this run.'
+            exit 0
+          fi
+          git config user.name 'nguyen-ha-content-factory[bot]'
+          git config user.email 'nguyen-ha-content-factory[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'content: publish next QA-approved article pairs'
+          git pull --rebase origin main
+          git push origin HEAD:main

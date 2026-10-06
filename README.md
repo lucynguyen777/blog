@@ -2,6 +2,10 @@
 
 Blog tĩnh cho **https://thuha.rentbikehanoi.com**, tương thích GitHub Pages. Không cần API key, dịch vụ AI hay cơ sở dữ liệu ngoài.
 
+## Xưởng nội dung liên tục
+
+Workflow `.github/workflows/content-factory.yml` tự tạo hàng đợi và xuất bản tối đa 6 cặp, mỗi cặp 2 bài, trong một lượt. Writer deterministic chỉ dùng Python và dữ liệu local; bài phải đạt ít nhất 75 điểm và không có lỗi critical. Nguồn mới được chia nhỏ trong `content/articles/`; `data/content-index.jsonl` là cache có thể dựng lại. Xem `docs/CONTENT-FACTORY.md` để chạy, dừng và khôi phục.
+
 ## Nội dung và ma trận
 
 - `content/site.json`: thông tin cửa hàng. Địa chỉ và giờ mở cửa dùng yêu cầu mới nhất: 24F ngõ 5 Nguyễn Văn Cừ; 08:00–17:00.

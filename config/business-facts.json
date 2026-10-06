@@ -1,0 +1,14 @@
+{
+  "brand": "Thuê xe máy Nguyễn Hà",
+  "address": "Ngõ 5 Nguyễn Văn Cừ, Bồ Đề, Long Biên, Hà Nội",
+  "landmark": "gần Bến xe Gia Lâm",
+  "phone": "0334 699 969",
+  "international_phone": "+84 334 699 969",
+  "hours": "09:00–21:00 hằng ngày",
+  "prices": {
+    "xe số": "150–200 nghìn/ngày, 700–800 nghìn/tuần, 1–1,2 triệu/tháng",
+    "xe ga": "150–200 nghìn/ngày, 600 nghìn–1 triệu/tuần, 1,2–2 triệu/tháng",
+    "xe điện": "giá ngày tùy mẫu, 600–800 nghìn/tuần, 1,5–1,8 triệu/tháng",
+    "xe 50cc": "200 nghìn/ngày, 1 triệu/tuần, 2 triệu/tháng"
+  }
+}
