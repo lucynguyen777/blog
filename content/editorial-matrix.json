@@ -142,5 +142,25 @@
     "url": "/lien-he/",
     "priority": "P0",
     "status": "published"
+  },
+  {
+    "title": "Kinh nghiệm thuê xe 50cc Hà Nội: kiểm tra xe và hợp đồng",
+    "keyword": "kinh nghiệm thuê xe 50cc Hà Nội kiểm tra xe hợp đồng tiền cọc",
+    "hub": "thue-xe",
+    "pillar": "/thue-xe-50cc/ha-noi/",
+    "url": "/thue-xe-50cc/ha-noi/kinh-nghiem/",
+    "priority": "P0",
+    "status": "published",
+    "word_count": 1500
+  },
+  {
+    "title": "Honda Vision có phù hợp để thuê đi lại ở Hà Nội?",
+    "keyword": "Honda Vision thuê xe Hà Nội chọn xe ga đi làm dài hạn",
+    "hub": "xe-may",
+    "pillar": "/xe-may/",
+    "url": "/xe-may/honda/vision/chon-xe-thue/",
+    "priority": "P1",
+    "status": "published",
+    "word_count": 1500
   }
 ]
