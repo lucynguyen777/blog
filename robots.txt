@@ -1,4 +1,3 @@
 User-agent: *
 Allow: /
-
 Sitemap: https://thuha.rentbikehanoi.com/sitemap.xml
