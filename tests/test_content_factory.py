@@ -22,7 +22,7 @@ for a in accepted:
  assert q['score']>=75 and not q['critical']
  assert 900<=q['word_count']<=1800
 pairs_per_run=f.CFG['pairs_per_run']
-assert f.CFG['pair_size']==2 and 6<=pairs_per_run<=10, f'pairs_per_run={pairs_per_run} out of range'
+assert f.CFG['pair_size']==2 and 6<=pairs_per_run<=50, f'pairs_per_run={pairs_per_run} out of range'
 facts=json.loads((ROOT/'config/business-facts.json').read_text())
 assert facts['hours']=='09:00–21:00 hằng ngày'
 assert facts['phone']=='0334 699 969'

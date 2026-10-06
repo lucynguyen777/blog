@@ -77,6 +77,14 @@ def slugify(s):
 def words(html): return re.findall(r"[\wÀ-ỹ]+",re.sub(r'<[^>]+>',' ',html),re.UNICODE)
 def grams(text,n=5):
  t=[x.lower() for x in words(text)];return set(tuple(t[i:i+n]) for i in range(max(0,len(t)-n+1)))
+_GRAMS_CACHE={}
+def article_grams(p):
+ k=p.get('id') or p.get('url')
+ if k and k in _GRAMS_CACHE: return _GRAMS_CACHE[k]
+ g=grams(' '.join(b for _,b in p.get('sections',[])))
+ if k: _GRAMS_CACHE[k]=g
+ return g
+def gram_similarity(g1,g2): return len(g1&g2)/max(1,len(g1|g2))
 def similarity(a,b):
  x,y=grams(a),grams(b)
  return len(x&y)/max(1,len(x|y))
@@ -397,7 +405,9 @@ def score(article,existing):
  add('depth',25 if CFG['minimum_words']<=wc<=CFG['maximum_words'] else (12 if wc>=700 else 0),25)
  links=len(re.findall(r'href="/',html));add('internal_links',15 if links>=4 else links*3,15)
  fact_terms=sum(x in html for x in [FACTS['phone'],FACTS['hours'],FACTS['address']]);add('facts',10 if fact_terms==3 else fact_terms*3,10)
- maxsim=max((similarity(html,' '.join(b for _,b in p.get('sections',[]))) for p in existing),default=0);add('uniqueness',15 if maxsim<=CFG['maximum_similarity'] else 0,15)
+ a_grams=grams(html)
+ if article.get('id'): _GRAMS_CACHE[article['id']]=a_grams
+ maxsim=max((gram_similarity(a_grams,article_grams(p)) for p in existing),default=0);add('uniqueness',15 if maxsim<=CFG['maximum_similarity'] else 0,15)
  urls={p['url'] for p in existing};intents={p.get('intent') for p in existing if p.get('intent')}
  if article['url'] in urls: critical.append('duplicate_url')
  if article['intent'] and article['intent'] in intents: critical.append('duplicate_intent')
