@@ -61,3 +61,17 @@ main{padding-bottom:42px}.footer{padding-bottom:100px}
 }
 @media(max-width:360px){.wrap{padding-inline:16px}.header .brand{font-size:11px;gap:7px}.brand small{font-size:8px}.mark{flex-shrink:0}.header-inner{gap:3px}.hub-grid{grid-template-columns:1fr}.information-page{padding:20px}}
 @media(max-height:500px){.menu-panel{top:80px;max-height:calc(100dvh - 90px)}.chat-panel{bottom:72px;max-height:calc(100dvh - 84px)}.chat-toggle,.call-toggle{bottom:12px}}
+
+/* Back to top button positioned directly above chatbot toggle */
+.back-to-top{right:24px;bottom:calc(85px + env(safe-area-inset-bottom));background:var(--surface);color:var(--ink);border:1px solid var(--line);z-index:35;transition:transform .2s,background .2s}
+.back-to-top:hover{background:var(--accent);color:var(--accent-ink);transform:translateY(-3px)}
+.back-to-top svg{width:22px;height:22px}
+@media(min-width:1400px){.back-to-top{right:36px}}
+@media(max-width:760px){.back-to-top{right:13px;bottom:calc(76px + env(safe-area-inset-bottom));width:45px;height:45px}}
+
+/* Pagination for category hubs */
+.pagination{display:flex;justify-content:center;align-items:center;gap:8px;margin:40px 0 20px;flex-wrap:wrap}
+.page-link{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;font-size:15px;transition:all .18s}
+.page-link:hover{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.page-link.active{background:var(--ink);color:var(--bg);border-color:var(--ink);cursor:default}
+.page-link.prev,.page-link.next{font-size:18px}

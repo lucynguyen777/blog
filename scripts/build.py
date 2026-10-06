@@ -113,21 +113,40 @@ for p in P:
    sections=''.join(f'<details class="faq-item" id="muc-{i+1}"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for i,(q,a) in enumerate(FAQ))
    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
   elif p['url']=='/cam-nang/':
-   hub_blocks=[]
-   for h in NAV:
-    h_articles=[q for q in P if q['hub']==h['slug'] and q['kind'] not in ['hub','page']]
-    if h_articles:
-     hub_blocks.append(f'<div class="cam-nang-hub" style="margin-bottom:48px"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">{E(h["label"])}</p><h2 style="font-size:26px"><a href="{h["url"]}">{E(h["label"])}</a></h2><p>{E(h["description"])}</p></div><a class="text-link" href="{h["url"]}">Xem tất cả ({len(h_articles)})</a></div><div class="grid">'+''.join(card(q) for q in h_articles)+'</div></div>')
-   sections_cam_nang=f'<div class="cam-nang-intro" style="margin-bottom:36px"><p>{E(p["excerpt"])}</p></div>'+''.join(hub_blocks)
-   page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section" style="padding-top:10px">{sections_cam_nang}</section>'
+    hub_blocks=[]
+    for h in NAV:
+     h_articles=[q for q in reversed(P) if q['hub']==h['slug'] and q['kind'] not in ['hub','page']]
+     if h_articles:
+      hub_blocks.append(f'<div class="cam-nang-hub" style="margin-bottom:48px"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">{E(h["label"])}</p><h2 style="font-size:26px"><a href="{h["url"]}">{E(h["label"])}</a></h2><p>{E(h["description"])}</p></div><a class="text-link" href="{h["url"]}">Xem tất cả ({len(h_articles)})</a></div><div class="grid">' + ''.join(card(q) for q in h_articles[:3]) + '</div></div>')
+    sections_cam_nang=f'<div class="cam-nang-intro" style="margin-bottom:36px"><p>{E(p["excerpt"])}</p></div>'+''.join(hub_blocks)
+    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section" style="padding-top:10px">{sections_cam_nang}</section>'
   else:
    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
  elif p['kind']=='hub':
-  items=[q for q in P if q['hub']==p['hub'] and q['kind'] not in ['hub','page']]
-  if items:sections='<div class="grid">'+''.join(card(q) for q in items)+'</div>'
-  else:sections='<div class="empty"><h2>Nội dung đang được chuẩn bị</h2><p>Chuyên mục chưa có bài viết. Bạn có thể bắt đầu với cẩm nang thuê xe và du lịch Hà Nội.</p><a class="pill gold" href="/thue-xe-may/ha-noi/">Đọc cẩm nang thuê xe</a></div>'
-  sections+='<div class="article-body" style="margin-top:30px">'+''.join(f'<section id="muc-{i+1}"><h2>{E(t)}</h2>{b}</section>' for i,(t,b) in enumerate(p['sections']))+'</div>'
-  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">CHUYÊN MỤC</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section">{sections}</section>'
+   items=[q for q in reversed(P) if q['hub']==p['hub'] and q['kind'] not in ['hub','page']]
+   page_size=25
+   total_pages=max(1,(len(items)+page_size-1)//page_size) if items else 1
+   hub_sections_body='<div class="article-body" style="margin-top:30px">'+''.join(f'<section id="muc-{i+1}"><h2>{E(t)}</h2>{b}</section>' for i,(t,b) in enumerate(p['sections']))+'</div>' if p['sections'] else ''
+   def make_hub_page(page_num):
+    start=(page_num-1)*page_size
+    page_items=items[start:start+page_size]
+    if page_items:
+     sec='<div class="grid">'+''.join(card(q) for q in page_items)+'</div>'
+     if total_pages>1:
+      sec+=T.render_pagination(p['url'],page_num,total_pages)
+    else:
+     sec='<div class="empty"><h2>Nội dung đang được chuẩn bị</h2><p>Chuyên mục chưa có bài viết. Bạn có thể bắt đầu với cẩm nang thuê xe và du lịch Hà Nội.</p><a class="pill gold" href="/thue-xe-may/ha-noi/">Đọc cẩm nang thuê xe</a></div>'
+    if page_num==1 and hub_sections_body:
+     sec+=hub_sections_body
+    return f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">CHUYÊN MỤC</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section">{sec}</section>'
+   page=make_hub_page(1)
+   for p_num in range(2,total_pages+1):
+    sub_page=make_hub_page(p_num)
+    sub_title=f"{p['title']} - Trang {p_num}"
+    sub_url=f"{p['url']}trang-{p_num}/"
+    sub_bc=[{'@type':'ListItem','position':1,'name':'Trang chủ','item':S['url']+'/'},{'@type':'ListItem','position':2,'name':sub_title,'item':S['url']+sub_url}]
+    sub_extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':sub_bc}]
+    write(sub_url,shell(sub_title,p['excerpt'],sub_url,sub_page,sub_extra,noindex=False))
  else:
   aside='<h3>Trong bài viết</h3>'+''.join(f'<a href="#muc-{i+1}">{E(t)}</a>' for i,(t,b) in enumerate(p['sections']))+f'<p>Thông tin xe còn sẵn và điều kiện thuê cần được cửa hàng xác nhận.</p><a class="pill gold" href="/lien-he/">Liên hệ Nguyễn Hà</a>'
   cta_block=T.render_conditional_cta(p['hub'])

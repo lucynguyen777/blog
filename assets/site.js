@@ -16,6 +16,7 @@ function togglePanel(id,show,focus=true){const item=panels.find(p=>p[0]===id);if
 }
 $('menu-toggle').onclick=()=>togglePanel('site-menu');$('menu-close').onclick=()=>togglePanel('site-menu',false);$('menu-backdrop').onclick=()=>togglePanel('site-menu',false);
 $('chat-toggle').onclick=()=>togglePanel('chat-panel');$('chat-close').onclick=()=>togglePanel('chat-panel',false);$('call-toggle').onclick=()=>togglePanel('quick-links');
+if($('back-to-top'))$('back-to-top').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=panels.find(p=>!$(p[0]).hidden);if(p){togglePanel(p[0],false);e.preventDefault()}}
  if(e.key==='Tab'&&!$('site-menu').hidden){const nodes=[...$('site-menu').querySelectorAll('button,a,summary')].filter(x=>x.getClientRects().length);if(e.shiftKey&&document.activeElement===nodes[0]){nodes.at(-1).focus();e.preventDefault()}else if(!e.shiftKey&&document.activeElement===nodes.at(-1)){nodes[0].focus();e.preventDefault()}}
 });

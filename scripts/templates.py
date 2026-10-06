@@ -26,6 +26,7 @@ PARTIAL_CARD = load_partial('card')
 PARTIAL_CTA_BANNER = load_partial('cta_banner')
 PARTIAL_AUTHOR_BOX = load_partial('author_box')
 PARTIAL_RELATED_POSTS = load_partial('related_posts')
+PARTIAL_PAGINATION = load_partial('pagination')
 PARTIAL_WIDGETS = load_partial('widgets')
 
 ICON_PATH = {
@@ -36,7 +37,8 @@ ICON_PATH = {
     'chat': '<path d="M21 11.5a8.5 8.5 0 0 1-9 8.5 10 10 0 0 1-3.5-.6L4 21v-5a8.5 8.5 0 1 1 17-4.5Z"/><path d="m7 14 4-4 3 3 3-3"/>',
     'phone': '<path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a13 13 0 0 1-7-7l2-2-2-5Z"/>',
     'send': '<path d="m12 19 0-14M6 11l6-6 6 6"/>',
-    'refresh': '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/>'
+    'refresh': '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/>',
+    'arrow_up': '<path d="m18 15-6-6-6 6"/>'
 }
 
 def icon(n):
@@ -168,8 +170,34 @@ def render_author_box():
         site_name=E(SITE_INFO['name'])
     )
 
+def render_pagination(base_url, current_page, total_pages):
+    if total_pages <= 1:
+        return ''
+    links = []
+    
+    # Previous button
+    if current_page > 1:
+        prev_url = base_url if current_page == 2 else f'{base_url}trang-{current_page - 1}/'
+        links.append(f'<a class="page-link prev" href="{prev_url}" aria-label="Trang trước">«</a>')
+    
+    # Page numbers
+    for p in range(1, total_pages + 1):
+        p_url = base_url if p == 1 else f'{base_url}trang-{p}/'
+        if p == current_page:
+            links.append(f'<span class="page-link active" aria-current="page">{p}</span>')
+        else:
+            links.append(f'<a class="page-link" href="{p_url}">{p}</a>')
+            
+    # Next button
+    if current_page < total_pages:
+        next_url = f'{base_url}trang-{current_page + 1}/'
+        links.append(f'<a class="page-link next" href="{next_url}" aria-label="Trang sau">»</a>')
+        
+    return PARTIAL_PAGINATION.format(pagination_links=''.join(links))
+
 def render_widgets():
     feat = SITE_CFG.get('features', {})
+    back_to_top_btn = f'''<button class="float back-to-top" id="back-to-top" aria-label="Lên đầu trang nhanh" title="Lên đầu trang">{icon('arrow_up')}</button>''' if feat.get('enable_back_to_top', True) else ''
     call_btn = f'''<button class="float call-toggle" id="call-toggle" aria-label="Mở liên hệ nhanh" aria-expanded="false" aria-controls="quick-links">{icon('phone')}</button>''' if feat.get('enable_quick_call', True) else ''
     quick_nav = f'''<nav id="quick-links" class="quick-links" aria-label="Liên hệ nhanh" hidden><a href="tel:{SITE_INFO['phone'].replace(' ', '')}"><span>{icon('phone')}</span>Gọi {E(SITE_INFO['phone'])}</a><a href="{SITE_CFG.get('business', {}).get('zalo', 'https://zalo.me/0334699969')}" target="_blank" rel="noopener noreferrer"><span>Z</span>Nhắn Zalo</a><a href="{SITE_CFG.get('business', {}).get('whatsapp', 'https://wa.me/84334699969')}" target="_blank" rel="noopener noreferrer"><span>W</span>Nhắn WhatsApp</a></nav>''' if feat.get('enable_quick_call', True) else ''
     
@@ -177,6 +205,7 @@ def render_widgets():
     chat_panel = f'''<section class="chat-panel" id="chat-panel" aria-label="Trợ lý Nguyễn Hà" hidden><div class="chat-head"><div><strong>Trợ lý Nguyễn Hà</strong><small>Tra cứu nội dung blog</small></div><div class="chat-controls"><button class="icon-btn" id="chat-refresh" aria-label="Đọc lại dữ liệu blog">{icon('refresh')}</button><button class="icon-btn" id="chat-close" aria-label="Đóng trợ lý">{icon('close')}</button></div></div><div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions"></div><form id="chat-form" class="chat-form"><input id="chat-input" name="question" aria-label="Câu hỏi cho trợ lý" placeholder="Bạn muốn tìm hiểu điều gì?" maxlength="500" autocomplete="off" required><button class="send-btn" aria-label="Gửi câu hỏi">{icon('send')}</button></form><p class="chat-disclaimer">Trả lời từ blog. Vui lòng liên hệ để xác nhận xe còn sẵn.</p></section>''' if feat.get('enable_chatbot', True) else ''
 
     return PARTIAL_WIDGETS.format(
+        back_to_top_html=back_to_top_btn,
         call_toggle_html=call_btn,
         quick_links_html=quick_nav,
         chat_toggle_html=chat_btn,

@@ -26,6 +26,7 @@
   },
   "features": {
     "enable_chatbot": true,
+    "enable_back_to_top": true,
     "enable_quick_call": true,
     "enable_theme_toggle": true,
     "enable_related_posts": true,
