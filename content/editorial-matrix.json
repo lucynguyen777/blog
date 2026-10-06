@@ -162,5 +162,25 @@
     "priority": "P1",
     "status": "published",
     "word_count": 1500
+  },
+  {
+    "title": "Xe số ở Long Biên: chọn xe khi đi làm giờ cao điểm, quãng đường dưới 5 km",
+    "keyword": "chọn xe xe số Long Biên người đi làm",
+    "hub": "xe-may",
+    "pillar": "/xe-may/",
+    "url": "/xe-may/long-bien/xe-so/chon-xe-nguoi-di-lam-di-lam-gio-cao-diem-quang-duong-duoi-5-km/",
+    "priority": "P1",
+    "status": "published",
+    "word_count": 974
+  },
+  {
+    "title": "Xe số ở Long Biên: hợp đồng khi đi làm giờ cao điểm, quãng đường dưới 5 km",
+    "keyword": "hợp đồng xe số Long Biên người đi làm",
+    "hub": "xe-may",
+    "pillar": "/xe-may/",
+    "url": "/xe-may/long-bien/xe-so/hop-dong-nguoi-di-lam-di-lam-gio-cao-diem-quang-duong-duoi-5-km/",
+    "priority": "P1",
+    "status": "published",
+    "word_count": 974
   }
 ]

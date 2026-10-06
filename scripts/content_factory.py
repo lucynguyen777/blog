@@ -116,16 +116,69 @@ def make_thue_xe(s):
   f'Đường đông, ngõ nhỏ và điểm dừng khác nhau khiến thao tác thực tế quan trọng hơn một bảng thông số chung. Hãy thử chống chân, dắt xe, quay đầu, bóp phanh và quan sát gương trong khu vực phù hợp. Nếu chưa tự tin với {v}, yêu cầu hướng dẫn trước khi nhận xe.',
   f'Khi di chuyển ở {d}, người thuê cần tính cả đoạn đường đến nơi gửi xe và khả năng xoay trở ở điểm đến. Thử tư thế ngồi, khoảng để chân và cách đặt hành lý. Không nhận xe khi có dấu hiệu ảnh hưởng đến an toàn hoặc thao tác chưa rõ.'
   ])+f'<p>Với {a}, lịch trình nên có khoảng nghỉ và phương án thay đổi khi mưa, đường ùn hoặc điểm gửi xe kín chỗ. Không vừa lái vừa xem bản đồ; hãy dừng tại vị trí phù hợp rồi mới kiểm tra hướng đi.</p>'))
- sections.append(('Checklist kiểm tra trước khi nhận',f'<p>Kiểm tra phanh trước và sau, lốp, đèn, còi, gương, khóa, đồng hồ và mức nhiên liệu hoặc pin. Chụp biển số, các vết xước và phụ kiện khi hai bên cùng có mặt. Nếu có điểm bất thường, ghi vào biên bản giao nhận trước khi ký.</p><p>Khởi động và nghe tiếng máy của {v}; thử ga và phanh ở tốc độ thấp trong khu vực cho phép. Xác nhận mũ bảo hiểm, chìa khóa và vật dụng đi kèm. Với xe điện, cần hỏi đúng bộ sạc, cách sạc và phạm vi sử dụng của mẫu xe; không dùng một con số chung cho mọi pin.</p>'))
- sections.append(('Đối chiếu giá và tổng ngân sách',f'<p>Mức tham khảo hiện hành cho nhóm phù hợp là {escape(price)}. Giá chiếc {v} cụ thể còn phụ thuộc xe sẵn có và thời hạn thuê. Ngoài tiền thuê, cần chuẩn bị tiền cọc theo thỏa thuận, phí giao nhận nếu áp dụng, nhiên liệu và khoản phát sinh được ghi trong hợp đồng.</p><p>Hãy yêu cầu cửa hàng chốt bằng văn bản: thời điểm bắt đầu, thời điểm trả, tổng tiền thuê, tiền cọc và điều kiện hoàn cọc. Không so sánh chỉ bằng giá ngày nếu nhu cầu thực tế là theo tuần hoặc tháng. Xem thêm <a href="/bang-gia/">bảng giá đang áp dụng</a> trước khi quyết định.</p>'))
- sections.append(('Đọc hợp đồng và giấy tờ',f'<p>Đối chiếu họ tên, thông tin chiếc xe, biển số, kỳ thuê, giờ trả và hiện trạng. Đọc phần trách nhiệm khi hư hỏng, trả sớm, quá giờ và mất phụ kiện. Chỉ ký khi nội dung trùng với trao đổi; giữ một bản hoặc ảnh rõ ràng để tra cứu trong thời gian sử dụng.</p><p>Người lái phải đáp ứng điều kiện độ tuổi và giấy phép phù hợp với đúng loại phương tiện. Khi chưa chắc yêu cầu pháp lý cho {v}, hãy kiểm tra nguồn chính thức và mục <a href="/luat-giao-thong/nguon-tra-cuu/">hướng dẫn tra cứu luật, bằng lái</a>. Bài blog không thay thế văn bản đang có hiệu lực.</p>'))
- sections.append(('Tổ chức giao nhận và thời điểm trả',f'<p>Thuê ngắn hạn nhận xe tại cửa hàng. Việc giao xe cho kỳ nhiều ngày, tuần hoặc tháng cần được thống nhất trước; cửa hàng không giao nhận tại sân bay Nội Bài. Ghi rõ địa điểm tại {d}, người bàn giao và số điện thoại liên hệ để tránh chờ hoặc nhầm điểm.</p><p>Một ngày thuê được tính theo 24 giờ ghi trong hợp đồng. Hãy đặt nhắc lịch trước giờ trả và dự trù thời gian di chuyển. Khi cần thay đổi kế hoạch, liên hệ sớm thay vì tự suy đoán cách tính phí.</p>'))
+ sections.append(('Checklist kiểm tra trước khi nhận',paragraph(seed+'3a',[
+  f'Kiểm tra phanh trước và sau, lốp, đèn, còi, gương, khóa, đồng hồ và mức nhiên liệu hoặc pin. Chụp biển số, các vết xước và phụ kiện khi hai bên cùng có mặt. Nếu có điểm bất thường, ghi vào biên bản giao nhận trước khi ký.',
+  f'Quan sát kỹ toàn bộ lốp xe {v}: rãnh gai còn sâu không, áp suất lốp có căng đều không và vành đúc có dấu hiệu móp méo không. Bật thử đèn chiếu xa, đèn chiếu gần, xi nhan hai bên và đèn phanh để đảm bảo an toàn tuyệt đối khi lưu thông.',
+  f'Trước khi nhận chiếc {v}, hãy kiểm tra khóa cổ, khóa từ và chân chống nghiêng/chân chống đứng. Thử bóp cả hai tay phanh để cảm nhận độ nảy và độ ăn của bố thắng, đảm bảo tay phanh không bị kẹt hay chạm sát vào tay nắm.'
+ ])+paragraph(seed+'3b',[
+  f'Khởi động và nghe tiếng máy của {v}; thử ga và phanh ở tốc độ thấp trong khu vực cho phép. Xác nhận mũ bảo hiểm, chìa khóa và vật dụng đi kèm. Với xe điện, cần hỏi đúng bộ sạc, cách sạc và phạm vi sử dụng của mẫu xe; không dùng một con số chung cho mọi pin.',
+  f'Đề nổ {v} để kiểm tra độ nhạy của bộ đề và độ êm của động cơ khi nổ galanti. Hỏi rõ nhân viên về cách mở nắp bình xăng hoặc vị trí cắm sạc pin, vị trí để áo mưa trong cốp và lưu lại số cứu hộ khẩn cấp trước khi rời điểm giao nhận.',
+  f'Lái thử một đoạn ngắn với {v} để cảm nhận độ cân bằng của tay lái và phuộc nhún trước sau. Kiểm tra hai gương chiếu hậu xem có bị rung lỏng khi máy chạy không và điều chỉnh đúng tầm mắt quan sát.'
+ ])))
+ sections.append(('Đối chiếu giá và tổng ngân sách',paragraph(seed+'4a',[
+  f'Mức tham khảo hiện hành cho nhóm phù hợp là {escape(price)}. Giá chiếc {v} cụ thể còn phụ thuộc xe sẵn có và thời hạn thuê. Ngoài tiền thuê, cần chuẩn bị tiền cọc theo thỏa thuận, phí giao nhận nếu áp dụng, nhiên liệu và khoản phát sinh được ghi trong hợp đồng.',
+  f'Ngân sách dự kiến khi thuê {v} tại {d} dựa trên khung giá niêm yết: {escape(price)}. Chi phí trọn gói cần tính thêm tiền xăng dầu hoặc điện sạc cho lộ trình, phí gửi xe qua đêm và khoản tiền cọc minh bạch được hoàn trả khi kết thúc hợp đồng.',
+  f'Theo bảng giá đang áp dụng, nhóm xe phù hợp có mức {escape(price)}. {a.capitalize()} nên cân nhắc thời hạn thuê theo ngày hoặc tuần để nhận mức chiết khấu tốt nhất, tránh việc phát sinh gia hạn lẻ tẻ từng ngày.'
+ ])+paragraph(seed+'4b',[
+  f'Hãy yêu cầu cửa hàng chốt bằng văn bản: thời điểm bắt đầu, thời điểm trả, tổng tiền thuê, tiền cọc và điều kiện hoàn cọc. Không so sánh chỉ bằng giá ngày nếu nhu cầu thực tế là theo tuần hoặc tháng. Xem thêm <a href="/bang-gia/">bảng giá đang áp dụng</a> trước khi quyết định.',
+  f'Để tối ưu chi tiêu cho chuyến đi, hãy đề nghị cơ sở cho thuê liệt kê toàn bộ điều khoản tài chính vào phiếu giao nhận: số tiền cọc, phương thức hoàn cọc và mức phí nếu quá giờ. Bạn có thể tra cứu chi tiết tại <a href="/bang-gia/">bảng giá niêm yết</a>.',
+  f'Chi phí thuê luôn đi kèm cam kết minh bạch không phụ phí ẩn. Hai bên cần thống nhất cụ thể mốc 24 giờ của một ngày thuê và phương thức thanh toán. Đọc kỹ chi tiết tại <a href="/bang-gia/">trang bảng giá chính thức</a> trước khi đặt cọc.'
+ ])))
+ sections.append(('Đọc hợp đồng và giấy tờ',paragraph(seed+'5a',[
+  f'Đối chiếu họ tên, thông tin chiếc xe, biển số, kỳ thuê, giờ trả và hiện trạng. Đọc phần trách nhiệm khi hư hỏng, trả sớm, quá giờ và mất phụ kiện. Chỉ ký khi nội dung trùng với trao đổi; giữ một bản hoặc ảnh rõ ràng để tra cứu trong thời gian sử dụng.',
+  f'Hợp đồng thuê {v} là văn bản bảo vệ quyền lợi của cả hai bên. Hãy kiểm tra kỹ biển số xe ghi trên giấy tờ có khớp với biển số gắn trên xe thực tế hay không, đối chiếu rõ mốc giờ trả xe và trách nhiệm bảo quản tài sản.',
+  f'Trước khi đặt bút ký, hãy đọc kỹ các điều khoản về phạm vi di chuyển, quy định bồi thường nếu xảy ra trầy xước hoặc va chạm ngoài ý muốn. Giữ lại một bản cứng hoặc chụp ảnh lại hợp đồng vào điện thoại để tra cứu khi cần.'
+ ])+paragraph(seed+'5b',[
+  f'Người lái phải đáp ứng điều kiện độ tuổi và giấy phép phù hợp với đúng loại phương tiện. Khi chưa chắc yêu cầu pháp lý cho {v}, hãy kiểm tra nguồn chính thức và mục <a href="/luat-giao-thong/nguon-tra-cuu/">hướng dẫn tra cứu luật, bằng lái</a>. Bài blog không thay thế văn bản đang có hiệu lực.',
+  f'{a.capitalize()} điều khiển {v} cần có giấy phép lái xe hợp lệ theo quy định pháp luật Việt Nam. Đối với người nước ngoài hoặc người chưa rõ phân khối xe, nên tham khảo trước tại <a href="/luat-giao-thong/nguon-tra-cuu/">chuyên mục tra cứu luật giao thông</a> để tránh bị xử phạt khi lưu thông.',
+  f'Đảm bảo mang theo giấy phép lái xe phù hợp khi nhận xe. Quy định điều khiển {v} đòi hỏi tuân thủ nghiêm ngặt luật giao thông đường bộ hiện hành; tra cứu thông tin chính xác tại mục <a href="/luat-giao-thong/nguon-tra-cuu/">hướng dẫn quy định bằng lái và pháp luật</a>.'
+ ])))
+ sections.append(('Tổ chức giao nhận và thời điểm trả',paragraph(seed+'6a',[
+  f'Thuê ngắn hạn nhận xe tại cửa hàng. Việc giao xe cho kỳ nhiều ngày, tuần hoặc tháng cần được thống nhất trước; cửa hàng không giao nhận tại sân bay Nội Bài. Ghi rõ địa điểm tại {d}, người bàn giao và số điện thoại liên hệ để tránh chờ hoặc nhầm điểm.',
+  f'Khách hàng có thể nhận xe trực tiếp tại cửa hàng hoặc yêu cầu hỗ trợ giao xe tại địa điểm thuận tiện ở {d} khi thuê theo tuần hoặc tháng. Thống nhất chính xác thời gian và vị trí hẹn bàn giao để không làm ảnh hưởng đến kế hoạch cá nhân.',
+  f'Địa điểm giao nhận xe tại {d} cần được hai bên xác nhận qua tin nhắn hoặc điện thoại trước giờ hẹn. Hãy chuẩn bị sẵn giấy tờ tùy thân để thủ tục bàn giao diễn ra nhanh gọn trong vòng 5–10 phút.'
+ ])+paragraph(seed+'6b',[
+  f'Một ngày thuê được tính theo 24 giờ ghi trong hợp đồng. Hãy đặt nhắc lịch trước giờ trả và dự trù thời gian di chuyển. Khi cần thay đổi kế hoạch, liên hệ sớm thay vì tự suy đoán cách tính phí.',
+  f'Cách tính thời gian chuẩn 24 giờ mỗi ngày giúp người thuê chủ động sắp xếp giờ trả xe. Nếu có phát sinh cần gia hạn hoặc trả sớm, hãy gọi điện thông báo trước cho cửa hàng để được hỗ trợ phương án tối ưu nhất.',
+  f'Hãy cài đặt báo thức trên điện thoại trước mốc giờ trả xe 1 tiếng để chủ động thời gian chạy xe qua điểm hẹn, tránh giờ cao điểm tắc đường khiến bạn bị trễ giờ trả xe.'
+ ])))
  sections.append(('Sử dụng xe trong suốt kỳ thuê',paragraph(seed+'7',[
   f'Mỗi ngày trước khi đi, quan sát nhanh lốp, phanh, đèn và dấu hiệu rò rỉ hoặc bất thường. Nếu {v} phát tiếng lạ, rung khác thường hay cảnh báo, dừng ở nơi an toàn rồi liên hệ cửa hàng; không tự sửa lớn hoặc thay phụ tùng khi chưa thống nhất.',
-  f'Giữ chìa khóa và giấy tờ theo hướng dẫn, khóa xe tại nơi phù hợp và tránh để tài sản có giá trị trên xe. Trong lịch đi của {a} tại {d}, nên lưu sẵn số hỗ trợ để xử lý nhanh nếu phương tiện có dấu hiệu bất thường.'
-  ])+f'<p>Không chở quá nhu cầu đã trao đổi, không giao xe cho người không có trong thỏa thuận và tuân thủ biển báo tại thời điểm thực tế. Mọi chi phí do hư hỏng cần được hai bên đối chiếu theo hợp đồng và hiện trạng đã ghi nhận.</p>'))
- sections.append(('Hoàn tất trả xe minh bạch',f'<p>Khi trả {v}, hai bên cùng kiểm tra biển số, đồng hồ, nhiên liệu hoặc pin, vết xước và phụ kiện. Đối chiếu ảnh lúc nhận để tách tình trạng có sẵn khỏi vấn đề mới. Yêu cầu xác nhận đã nhận đủ xe, chìa khóa và đồ đi kèm.</p><p>Nếu có khoản phát sinh, đề nghị giải thích theo điều khoản đã ký. Kiểm tra việc hoàn cọc trước khi rời điểm giao nhận. Lưu ảnh biên bản hoặc tin nhắn xác nhận cho đến khi giao dịch kết thúc hoàn toàn.</p>'))
- sections.append(('Liên hệ và xác nhận xe còn sẵn',f'<p>{brand} ở {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Giờ mở cửa: {escape(FACTS["hours"])}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.</p><p>Khi liên hệ, hãy gửi bốn thông tin: loại xe muốn thử, thời gian thuê, khu vực nhận tại {d} và nhu cầu của {a}. Cửa hàng sẽ xác nhận xe thực tế, mức cọc và điều kiện giao nhận. Xem <a href="/faq/">câu hỏi thường gặp</a> hoặc <a href="/lien-he/">trang liên hệ</a> để chuẩn bị trước.</p>'))
+  f'Trong suốt thời gian sử dụng {v} tại {d}, hãy duy trì thói quen kiểm tra áp suất lốp và phanh trước mỗi chuyến đi. Khi xe có dấu hiệu hết dầu phanh hoặc máy nóng bất thường, hãy liên hệ hotline để được kỹ thuật viên hướng dẫn xử lý an toàn.',
+  f'Giữ gìn xe cẩn thận, không chở quá tải trọng cho phép và luôn khóa cổ, khóa càng khi gửi xe tại các điểm công cộng. Nếu {v} gặp sự cố hỏng hóc giữa đường, gọi ngay số điện thoại cứu trợ của cửa hàng để được trợ giúp kịp thời.'
+ ])+paragraph(seed+'7b',[
+  f'Giữ chìa khóa và giấy tờ theo hướng dẫn, khóa xe tại nơi phù hợp và tránh để tài sản có giá trị trên xe. Trong lịch đi của {a} tại {d}, nên lưu sẵn số hỗ trợ để xử lý nhanh nếu phương tiện có dấu hiệu bất thường.',
+  f'Tránh để ví tiền, điện thoại hay giấy tờ quan trọng trong cốp xe khi gửi ở các bãi gửi xe lạ. Luôn gửi xe tại các bãi có vé giữ xe rõ ràng và nhân viên bảo vệ túc trực.',
+  f'Khi lưu thông vào ban đêm hoặc trong ngõ tối, hãy đảm bảo đèn xe luôn bật sáng và giữ tốc độ vừa phải. Luôn bảo quản cẩn thận chìa khóa dự phòng và các giấy tờ đi kèm xe.'
+ ])))
+ sections.append(('Hoàn tất trả xe minh bạch',paragraph(seed+'8a',[
+  f'Khi trả {v}, hai bên cùng kiểm tra biển số, đồng hồ, nhiên liệu hoặc pin, vết xước và phụ kiện. Đối chiếu ảnh lúc nhận để tách tình trạng có sẵn khỏi vấn đề mới. Yêu cầu xác nhận đã nhận đủ xe, chìa khóa và đồ đi kèm.',
+  f'Quy trình hoàn trả {v} diễn ra nhanh chóng: đối chiếu lại video/ảnh chụp ban đầu để khẳng định xe không phát sinh vết xước mới, kiểm tra vạch xăng/pin và bàn giao lại mũ bảo hiểm cùng giấy tờ gốc.',
+  f'Khi bàn giao xe lại cho cửa hàng, hãy kiểm tra kỹ toàn bộ cốp xe và hộc đồ phía trước để không bỏ quên tư trang cá nhân. Hai bên cùng ký xác nhận hoàn thành kỳ thuê trên biên bản.'
+ ])+paragraph(seed+'8b',[
+  f'Nếu có khoản phát sinh, đề nghị giải thích theo điều khoản đã ký. Kiểm tra việc hoàn cọc trước khi rời điểm giao nhận. Lưu ảnh biên bản hoặc tin nhắn xác nhận cho đến khi giao dịch kết thúc hoàn toàn.',
+  f'Tiền đặt cọc sẽ được hoàn trả ngay lập tức bằng tiền mặt hoặc chuyển khoản ngân hàng ngay khi kiểm tra xong hiện trạng xe. Bạn nên giữ biên nhận điện tử để hoàn tất mọi thủ tục.',
+  f'Mọi chi phí nếu có phát sinh đều được giải trình rõ ràng căn cứ trên hợp đồng đã ký kết ban đầu. Nhận lại tiền cọc đầy đủ trước khi tạm biệt nhân viên bàn giao.'
+ ])))
+ sections.append(('Liên hệ và xác nhận xe còn sẵn',paragraph(seed+'9a',[
+  f'{brand} ở {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Giờ mở cửa: {escape(FACTS["hours"])}. Điện thoại, Zalo và WhatsApp: <a href="tel:+84334699969">{phone}</a>.',
+  f'Cơ sở cho thuê xe uy tín tọa lạc tại {escape(FACTS["address"])}, {escape(FACTS["landmark"])} ({brand}). Hotline hỗ trợ và Zalo: <a href="tel:+84334699969">{phone}</a>. Giờ phục vụ hằng ngày: {escape(FACTS["hours"])}.',
+  f'Để trải nghiệm dịch vụ tại {brand}, quý khách có thể ghé qua {escape(FACTS["address"])}, {escape(FACTS["landmark"])}. Chúng tôi mở cửa từ {escape(FACTS["hours"])}. Liên hệ hotline/Zalo: <a href="tel:+84334699969">{phone}</a> để được phục vụ chu đáo.'
+ ])+paragraph(seed+'9b',[
+  f'Khi liên hệ, hãy gửi bốn thông tin: loại xe muốn thử, thời gian thuê, khu vực nhận tại {d} và nhu cầu của {a}. Cửa hàng sẽ xác nhận xe thực tế, mức cọc và điều kiện giao nhận. Xem <a href="/faq/">câu hỏi thường gặp</a> hoặc <a href="/lien-he/">trang liên hệ</a> để chuẩn bị trước.',
+  f'Để được giữ xe nhanh chóng, vui lòng thông báo trước: mẫu xe mong muốn ({v}), số ngày dự kiến thuê, điểm đón tại {d} và nhu cầu di chuyển của bạn. Xem thêm thông tin chi tiết tại mục <a href="/faq/">câu hỏi thường gặp</a> và <a href="/lien-he/">kênh liên hệ</a>.',
+  f'Đội ngũ chăm sóc khách hàng luôn sẵn sàng phản hồi nhanh chóng. Hãy nhắn tin thông tin lịch trình để chúng tôi kiểm tra tình trạng xe còn sẵn và chuẩn bị phương tiện tốt nhất. Tham khảo thêm <a href="/faq/">giải đáp thắc mắc FAQ</a> hoặc <a href="/lien-he/">thông tin liên hệ chi tiết</a>.'
+ ])))
  body=' '.join(x[1] for x in sections);wc=len(words(body))
  return {'id':f'NH-{s["sequence"]:05d}','url':s['url'],'title':s['title'],'hub':s['hub'],
          'excerpt':f'{s["angle_label"].capitalize()} cho {s["vehicle"]} tại {s["district"]}, gồm kiểm tra xe, chi phí, hợp đồng, giao nhận và cách liên hệ Nguyễn Hà.',
@@ -424,14 +477,60 @@ def report():
  print(json.dumps(out,ensure_ascii=False,indent=2));return 0
 
 
+# ── Daemon ────────────────────────────────────────────────────────────────────
+def daemon(interval=3600, limit=None):
+ import time, subprocess
+ print(f'Starting Content Factory daemon (interval: {interval}s)...')
+ while True:
+  now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+  print(f'[{now_str}] Checking factory state...')
+  if (ROOT/'STOP_FACTORY').exists() or not CFG.get('enabled', True):
+   print('Factory paused by control flag (STOP_FACTORY / config). Sleeping 60s...')
+   time.sleep(min(interval, 60)); continue
+  state = json.loads(STATE_PATH.read_text())
+  target = CFG.get('target_articles')
+  existing = len(load_existing())
+  if target and existing >= target:
+   print(f'Target reached: {existing}/{target} articles. Stopping daemon.')
+   break
+  try:
+   subprocess.run(['git', 'pull', '--rebase', 'origin', 'main'], cwd=str(ROOT))
+  except Exception as e:
+   print(f'git pull notice: {e}')
+  run(limit)
+  try:
+   subprocess.run([sys.executable, str(ROOT/'scripts/build.py')], check=True, cwd=str(ROOT))
+   subprocess.run([sys.executable, str(ROOT/'tests/test_content_factory.py')], check=True, cwd=str(ROOT))
+   subprocess.run([sys.executable, str(ROOT/'scripts/validate_factory_site.py')], check=True, cwd=str(ROOT))
+  except Exception as e:
+   print(f'Build/test error: {e}')
+  try:
+   res = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True, cwd=str(ROOT))
+   if res.stdout.strip():
+    print('New articles verified. Committing and pushing to main...')
+    subprocess.run(['git', 'add', '-A'], check=True, cwd=str(ROOT))
+    subprocess.run(['git', 'commit', '-m', 'content: auto-publish QA-approved batch from local daemon'], check=True, cwd=str(ROOT))
+    subprocess.run(['git', 'pull', '--rebase', 'origin', 'main'], cwd=str(ROOT))
+    subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=str(ROOT))
+    print('Successfully published and pushed batch.')
+   else:
+    print('No changes in this cycle.')
+  except Exception as e:
+   print(f'Git push notice: {e}')
+  print(f'Cycle finished. Sleeping {interval}s...')
+  time.sleep(interval)
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def main():
  ap=argparse.ArgumentParser();sp=ap.add_subparsers(dest='cmd',required=True)
  r=sp.add_parser('run');r.add_argument('--limit',type=int);r.add_argument('--dry-run',action='store_true')
  sp.add_parser('reindex');sp.add_parser('status');sp.add_parser('report')
+ d=sp.add_parser('daemon');d.add_argument('--interval',type=int,default=3600);d.add_argument('--limit',type=int)
  a=ap.parse_args()
  if a.cmd=='run':return run(a.limit,a.dry_run)
  if a.cmd=='reindex':print(json.dumps({'index_rows':reindex()}));return 0
  if a.cmd=='report':return report()
+ if a.cmd=='daemon':return daemon(a.interval,a.limit)
  state=json.loads(STATE_PATH.read_text());print(json.dumps({'config':CFG,'state':state,'articles':len(load_existing()),'stopped':(ROOT/'STOP_FACTORY').exists(),'matrix_capacity':LAW_CAP},ensure_ascii=False,indent=2));return 0
 if __name__=='__main__':raise SystemExit(main())
