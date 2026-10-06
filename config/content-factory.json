@@ -9,5 +9,10 @@
   "maximum_similarity": 0.86,
   "search_index_limit": 2500,
   "schedule": "every 30 minutes",
+  "operating_hours": {
+    "pause_start_hour": 1,
+    "resume_hour": 8,
+    "description": "Chạy đến 00:00 (12h đêm), tạm dừng từ 01:00 đến 07:59, 08:00 sáng chạy tiếp"
+  },
   "version": 1
 }

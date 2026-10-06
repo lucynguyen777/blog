@@ -22,6 +22,13 @@ while true; do
     continue
   fi
 
+  HOUR=$(date +%-H)
+  if [ "$HOUR" -ge 1 ] && [ "$HOUR" -le 7 ]; then
+    echo "--- [$(date '+%Y-%m-%d %H:%M:%S')] Giờ nghỉ đêm (01:00 - 08:00). Tạm dừng đến 8h sáng..."
+    sleep 1800
+    continue
+  fi
+
   # 1. Đồng bộ code mới nhất từ GitHub
   echo "1. Đồng bộ git..."
   git pull --rebase origin main || true

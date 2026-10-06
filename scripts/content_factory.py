@@ -729,10 +729,23 @@ def reindex():
     INDEX_PATH.write_text('\n'.join(json.dumps(r,ensure_ascii=False,separators=(',',':')) for r in rows) + '\n')
     return len(rows)
 
+def is_operating_hours():
+    cfg_hours = CFG.get('operating_hours')
+    if not cfg_hours: return True
+    p_start = cfg_hours.get('pause_start_hour', 1)
+    p_resume = cfg_hours.get('resume_hour', 8)
+    h = datetime.now().hour
+    if p_start <= h < p_resume:
+        return False
+    return True
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 def run(limit=None,dry_run=False):
     if (ROOT/'STOP_FACTORY').exists():
         print('Factory paused by STOP_FACTORY. Skipping run.')
+        return 0
+    if not dry_run and not is_operating_hours():
+        print(f'[{datetime.now().strftime("%H:%M:%S")}] Ngoài khung giờ hoạt động (nghỉ đêm từ 01:00 đến 07:59). Tạm dừng chu kỳ cho đến 08:00 sáng.')
         return 0
     state=json.loads(STATE_PATH.read_text())
     existing=load_existing()
@@ -798,6 +811,9 @@ def daemon(interval=3600, limit=None):
         if (ROOT/'STOP_FACTORY').exists() or not CFG.get('enabled', True):
             print('Factory paused by control flag (STOP_FACTORY / config). Sleeping 60s...')
             time.sleep(min(interval, 60)); continue
+        if not is_operating_hours():
+            print(f'[{now_str}] Đang trong giờ nghỉ đêm (01:00 - 08:00). Tạm dừng chu kỳ, sẽ chạy lại lúc 08:00 sáng...')
+            time.sleep(min(interval, 1800)); continue
         state = json.loads(STATE_PATH.read_text())
         target = CFG.get('target_articles')
         existing = len(load_existing())
