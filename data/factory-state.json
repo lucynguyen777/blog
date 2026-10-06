@@ -1,7 +1,7 @@
 {
-  "next_sequence": 5,
-  "published_by_factory": 2,
+  "next_sequence": 25,
+  "published_by_factory": 22,
   "rejected": 2,
-  "last_run": "2026-10-06T11:49:45.895419+00:00",
+  "last_run": "2026-10-06T12:03:58.286068+00:00",
   "status": "ready"
 }
