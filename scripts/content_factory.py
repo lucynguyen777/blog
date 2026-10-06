@@ -731,6 +731,9 @@ def reindex():
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 def run(limit=None,dry_run=False):
+    if (ROOT/'STOP_FACTORY').exists():
+        print('Factory paused by STOP_FACTORY. Skipping run.')
+        return 0
     state=json.loads(STATE_PATH.read_text())
     existing=load_existing()
     urls={p['url'] for p in existing};intents={p.get('intent') for p in existing if p.get('intent')}
@@ -765,6 +768,8 @@ def run(limit=None,dry_run=False):
     print(f'PUBLISHED: {len(accepted)} articles; REJECTED: {rejected}; NEXT_SEQ: {seq}')
     if state['published_by_factory'] >= state.get('notify_milestone', 1000):
         print(f'MILESTONE_REACHED: {state["published_by_factory"]} articles published!')
+        (ROOT/'STOP_FACTORY').touch()
+        print('STOP_FACTORY created to pause production at milestone as requested.')
     return 0
 
 # ── Report ────────────────────────────────────────────────────────────────────
