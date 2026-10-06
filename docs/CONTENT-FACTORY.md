@@ -48,4 +48,4 @@ python3 scripts/content_factory.py reindex
 # chạy lại: xóa STOP_FACTORY rồi commit
 ```
 
-Có thể đổi mục tiêu từ 20.000 lên 50.000 trong `config/content-factory.json`. Trước khi tăng, cần xem báo cáo trùng lặp và chất lượng theo từng 1.000 bài. GitHub Pages và trình duyệt không nên tải một JSON tìm kiếm chứa toàn bộ 50.000 bài; chỉ mục giao diện phải được chia shard theo hub khi vượt 2.500 tài liệu.
+`target_articles` đang để `null`, nên xưởng chỉ dừng bằng thao tác thủ công. Có thể đặt một số nguyên nếu muốn thêm giới hạn cứng. Trước các mốc 20.000, 30.000 và 50.000 cần xem báo cáo trùng lặp và chất lượng. GitHub Pages và trình duyệt không tải một JSON tìm kiếm chứa toàn bộ 50.000 bài; chỉ mục giao diện được giới hạn, còn cache JSONL giữ toàn bộ corpus.

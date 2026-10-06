@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "target_articles": 20000,
+  "target_articles": null,
   "pair_size": 2,
   "pairs_per_run": 6,
   "minimum_score": 75,

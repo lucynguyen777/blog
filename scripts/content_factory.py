@@ -108,8 +108,8 @@ def reindex():
 def run(limit=None,dry=False):
  state=json.loads(STATE_PATH.read_text());existing=load_existing();limit=limit or CFG['pair_size']*CFG['pairs_per_run']
  if not CFG['enabled'] or (ROOT/'STOP_FACTORY').exists(): print('Factory stopped by control flag.');return 0
- made=[];queue=[];attempts=0
- while len(made)<limit and len(existing)+len(made)<CFG['target_articles'] and attempts<limit*20:
+ made=[];queue=[];attempts=0;target=CFG.get('target_articles')
+ while len(made)<limit and (not target or len(existing)+len(made)<target) and attempts<limit*20:
   seq=state['next_sequence'];state['next_sequence']+=1;attempts+=1;s=spec_for(seq);a=make_article(s);qa=score(a,existing+made)
   q={'id':a['id'],'sequence':seq,'url':a['url'],'intent':a['intent'],'qa':qa,'created_at':datetime.now(timezone.utc).isoformat(),'status':'published' if qa['pass'] else 'rejected'};queue.append(q)
   if qa['pass']:made.append(a)
@@ -120,7 +120,7 @@ def run(limit=None,dry=False):
  for a in made:(ARTICLES/f'{a["id"]}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2)+'\n')
  with QUEUE_PATH.open('a') as f:
   for q in queue:f.write(json.dumps(q,ensure_ascii=False,separators=(',',':'))+'\n')
- state['published_by_factory']+=len(made);state['last_run']=datetime.now(timezone.utc).isoformat();state['status']='target-reached' if len(existing)+len(made)>=CFG['target_articles'] else 'ready';STATE_PATH.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n')
+ state['published_by_factory']+=len(made);state['last_run']=datetime.now(timezone.utc).isoformat();state['status']='target-reached' if target and len(existing)+len(made)>=target else 'ready';STATE_PATH.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n')
  count=reindex();print(json.dumps({'published':len(made),'pairs':len(made)//2,'attempted':attempts,'index_rows':count,'next_sequence':state['next_sequence']},ensure_ascii=False));return 0
 
 def main():
