@@ -21,7 +21,7 @@ assert len(accepted)==12, f'Only {len(accepted)} articles passed'
 for a in accepted:
  q=f.score(a,existing)
  assert q['score']>=75 and not q['critical']
- assert 900<=q['word_count']<=1800
+ assert f.CFG['minimum_words']<=q['word_count']<=f.CFG['maximum_words']
 pairs_per_run=f.CFG['pairs_per_run']
 assert f.CFG['pair_size']==2 and 6<=pairs_per_run<=50, f'pairs_per_run={pairs_per_run} out of range'
 facts=json.loads((ROOT/'config/business-facts.json').read_text())
