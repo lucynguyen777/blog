@@ -96,10 +96,10 @@ def audit_articles(limit=100, fail_on_error=False):
         words = clean_words(raw_text)
         word_count = len(words)
 
-        if word_count < 900:
-            issues.append(f"[{art_id}] Dưới ngưỡng từ tối thiểu (900 từ): {word_count} từ")
-        elif word_count > 1800:
-            warnings.append(f"[{art_id}] Vượt ngưỡng từ khuyến nghị (1800 từ): {word_count} từ")
+        if word_count < 1500:
+            issues.append(f"[{art_id}] Dưới ngưỡng từ tối thiểu (1500 từ): {word_count} từ")
+        elif word_count > 5000:
+            warnings.append(f"[{art_id}] Vượt ngưỡng từ khuyến nghị (5000 từ): {word_count} từ")
 
         # 3. Kiểm tra Sections
         if len(sections) < 5:

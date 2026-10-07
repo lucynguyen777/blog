@@ -5,7 +5,7 @@
   "pairs_per_run": 50,
   "minimum_score": 75,
   "minimum_words": 1500,
-  "maximum_words": 2800,
+  "maximum_words": 5000,
   "maximum_similarity": 0.86,
   "search_index_limit": 2500,
   "schedule": "every 30 minutes",
