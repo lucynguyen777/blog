@@ -1,0 +1,56 @@
+name: Facebook pipeline checks
+on:
+  push:
+    branches: [main, 'codex/facebook-*']
+    paths: ['scripts/facebook_pipeline.py', 'scripts/latest_articles.py', 'tests/test_facebook*.py', 'config/facebook.json', '.github/workflows/facebook*.yml']
+  pull_request:
+    paths: ['scripts/facebook_pipeline.py', 'scripts/latest_articles.py', 'tests/test_facebook*.py', 'config/facebook.json', '.github/workflows/facebook*.yml']
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m unittest discover -s tests -p 'test_facebook*.py' -v
+      - run: python3 scripts/latest_articles.py
+
+  ai-dry-run:
+    needs: tests
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/facebook-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Start local AI without any Meta or AI token
+        run: |
+          docker run -d --name social-ollama -p 127.0.0.1:11434:11434 -e OLLAMA_NO_CLOUD=1 ollama/ollama:0.34.2
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:11434/api/tags > /dev/null; then break; fi
+            sleep 1
+          done
+          docker exec social-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+      - name: Full 10-source AI dry-run using latest published sources
+        run: |
+          test_day=$(TZ=Asia/Ho_Chi_Minh date -d tomorrow +%F)
+          python3 scripts/facebook_pipeline.py prepare --date "$test_day"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: facebook-ai-dry-run-${{ github.run_id }}
+          path: out/facebook/
+          retention-days: 7
+          if-no-files-found: ignore

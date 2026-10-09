@@ -198,3 +198,7 @@ else:
 (ROOT/'CNAME').write_text('thuha.rentbikehanoi.com\n');(ROOT/'.nojekyll').touch()
 (ROOT/'assets/favicon.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="19" fill="#ffa266"/><text x="11" y="45" fill="#171719" font-family="Arial,sans-serif" font-size="44" font-weight="700">n.</text></svg>')
 print(f'Built {len(P)+1} pages, {len(index)} searchable articles, {len(urls)} sitemap URLs')
+
+# /cam-nang/ aggregates every article hub; expose a bounded dated feed for social jobs.
+from latest_articles import build_feed
+build_feed(ROOT)

@@ -1039,6 +1039,7 @@ def run(limit=None,dry_run=False):
         return 0
     ARTICLES.mkdir(parents=True,exist_ok=True)
     for art,log in accepted:
+        art['published_at'] = log['timestamp']
         (ARTICLES/f'{art["id"]}.json').write_text(json.dumps(art,ensure_ascii=False,indent=2)+'\n')
         logs.append(log)
     with QUEUE_PATH.open('a',encoding='utf-8') as q:

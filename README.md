@@ -35,3 +35,10 @@ Chatbot là hệ thống truy xuất nội dung local, không phải mô hình n
 Nút làm mới đọc sitemap và cào tối đa 40 URL với 3 tác vụ đồng thời, timeout từng trang; không gọi API bên ngoài. Site lớn cần rebuild chỉ mục cho toàn bộ nội dung; không cào 20.000 trang trong trình duyệt mỗi lượt hỏi. Dữ liệu hội thoại chỉ tồn tại trong tab; lựa chọn màu sáng/tối lưu cục bộ. Mất kết nối hiển thị thông báo hoặc dùng dữ liệu đã đọc.
 
 Ảnh Hà Nội: Elliot Andrews / Unsplash, nguồn https://unsplash.com/@elliot_ra8. Ảnh là ảnh biên tập, không đại diện đội xe cửa hàng. File WebP tối ưu được lưu trong repo.
+
+## Facebook daily automation
+
+GitHub Actions prepares up to 10 latest `/cam-nang/` articles at 10:00 Vietnam time,
+using local Ollama AI and a durable `facebook-state` branch. Native Meta scheduling
+is **disabled by default** until Page token permissions and full dry-run tests are
+verified. See [setup, safety gates and reports](docs/FACEBOOK-AUTOMATION.md).
