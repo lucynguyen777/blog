@@ -24,7 +24,7 @@ jobs:
 
   ai-dry-run:
     needs: tests
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/facebook-')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/facebook-') && contains(github.event.head_commit.message, '[ai-dry-run]')
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:

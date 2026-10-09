@@ -1,7 +1,5 @@
 import copy
 from datetime import datetime, timezone
-import importlib.util
-import json
 from pathlib import Path
 import sys
 import tempfile
@@ -77,9 +75,6 @@ class PipelineTests(unittest.TestCase):
         return {'date': '2026-10-09', 'mode': 'dry-run', 'found': 1, 'missing': 9,
                 'entries': [{'url': article()['url'], 'title': article()['title'], 'message': msg,
                              'body': body, 'status': 'ready', 'scheduled_at': '2026-10-09T11:00:00+07:00'}]}
-
-    def live(self):
-        return patch.multiple(f.CONFIG, live_enabled=True)  # dict patched separately in tests
 
     def test_default_gate_never_posts(self):
         meta = FakeMeta()
@@ -169,6 +164,30 @@ class PipelineTests(unittest.TestCase):
             q = f.schedule(self.store, self.queue(), meta, lambda: datetime(2026, 10, 9, 3, 55, tzinfo=timezone.utc))
             self.assertEqual(meta.calls, 0)
             self.assertEqual(q['entries'][0]['status'], 'missed')
+
+    @patch.dict('os.environ', {'FACEBOOK_LIVE_ENABLED': 'true', 'FACEBOOK_TESTS_PASSED': 'true'})
+    def test_wrong_schedule_halts_then_blocks_remaining_posts(self):
+        with patch.dict(f.CONFIG, {'live_enabled': True}):
+            meta = FakeMeta(); meta.wrong_time = True
+            q = self.queue()
+            second = copy.deepcopy(q['entries'][0])
+            second['scheduled_at'] = '2026-10-09T11:30:00+07:00'
+            q['entries'].append(second)
+            with self.assertRaises(ValueError): f.schedule(self.store, q, meta, self.clock)
+            self.assertEqual(meta.calls, 1)
+            persisted = self.store.read('days/2026-10-09.json')
+            with self.assertRaises(ValueError): f.schedule(self.store, persisted, meta, self.clock)
+            self.assertEqual(meta.calls, 1)
+
+    @patch.dict('os.environ', {'FACEBOOK_LIVE_ENABLED': 'true', 'FACEBOOK_TESTS_PASSED': 'true'})
+    def test_prior_day_message_is_not_adopted(self):
+        with patch.dict(f.CONFIG, {'live_enabled': True}):
+            q = self.queue(); q['entries'][0]['status'] = 'unknown'
+            meta = FakeMeta()
+            meta.rows = [{'id': 'old', 'message': q['entries'][0]['message'], 'created_time': '2026-10-08T03:30:00+0000'}]
+            q = f.schedule(self.store, q, meta, self.clock)
+            self.assertEqual(q['entries'][0]['status'], 'unknown')
+            self.assertEqual(meta.calls, 0)
 
     def test_live_requires_remote_journal(self):
         with patch.dict(f.CONFIG, {'live_enabled': True}), patch.dict('os.environ', {'FACEBOOK_LIVE_ENABLED': 'true', 'FACEBOOK_TESTS_PASSED': 'true'}):

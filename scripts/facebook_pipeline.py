@@ -103,7 +103,7 @@ def validate_live_article(article):
     deployed = re.sub(r'\s+', '', ''.join(parser.text))
     if parser.canonical != url:
         raise ValueError('Canonical mismatch')
-    if not article.get('sections') or any(re.sub(r'\s+', '', s['text']) not in deployed for s in article['sections']):
+    if not article.get('text') or re.sub(r'\s+', '', article['text']) not in deployed:
         raise ValueError('Full article not yet deployed or section content differs')
 
 
@@ -256,6 +256,7 @@ def validate_draft(draft, article, previous=()):
 
 
 def prepare(store, day, feed, ai=generate, verify=validate_live_article):
+    started = time.monotonic()
     path = f'days/{day}.json'
     queue = store.read(path)
     if queue and queue.get('mode') == 'live':
@@ -272,7 +273,8 @@ def prepare(store, day, feed, ai=generate, verify=validate_live_article):
             article = hydrate_article(article)
             scheduled = datetime.fromisoformat(day + 'T' + CONFIG['first_post']).replace(tzinfo=ZoneInfo(CONFIG['timezone'])) + timedelta(minutes=index * CONFIG['interval_minutes'])
             queue['entries'].append({'key': hashlib.sha256((CONFIG['page_id'] + day + article['url']).encode()).hexdigest(),
-                                     'title': article['title'], 'url': article['url'], 'source': article,
+                                     'title': article['title'], 'url': article['url'],
+                                     'source': {k: v for k, v in article.items() if k != 'sections'},
                                      'scheduled_at': scheduled.isoformat(), 'status': 'pending'})
         store.write(path, queue)  # freeze the 10:00 list before AI calls
     bodies = [e['body'] for e in queue['entries'] if e.get('body')]
@@ -296,6 +298,9 @@ def prepare(store, day, feed, ai=generate, verify=validate_live_article):
         except Exception as exc:
             entry.update(status='prepare_error', error=safe_error(exc))
         store.write(path, queue)
+    queue['last_prepare_seconds'] = round(time.monotonic() - started, 2)
+    queue['prepared_at'] = now().isoformat()
+    store.write(path, queue)
     return queue
 
 
