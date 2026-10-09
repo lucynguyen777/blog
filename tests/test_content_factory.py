@@ -25,6 +25,6 @@ for a in accepted:
 pairs_per_run=f.CFG['pairs_per_run']
 assert f.CFG['pair_size']==2 and 6<=pairs_per_run<=50, f'pairs_per_run={pairs_per_run} out of range'
 facts=json.loads((ROOT/'config/business-facts.json').read_text())
-assert facts['hours']=='09:00–21:00 hằng ngày'
+assert facts['hours']=='08:00–17:00 hằng ngày'
 assert facts['phone']=='0334 699 969'
 print(f'PASS: 50,000 unique plans; {pairs_per_run}x2 queue; QA >= 75; NAP facts')

@@ -21,7 +21,7 @@ for p in posts:
    if 'alt=' not in img:errors.append('img missing alt in '+p['url'])
 index=[json.loads(x) for x in (ROOT/'data/content-index.jsonl').read_text().splitlines() if x.strip()]
 if len(index)!=len([p for p in posts if p.get('kind') not in ('hub','page')]):errors.append('content index drift')
-if site['hours']!='09:00–21:00 hằng ngày':errors.append('NAP hours drift')
+if site['hours']!='08:00–17:00 hằng ngày':errors.append('NAP hours drift')
 if errors:
  print('\n'.join(errors));sys.exit(1)
 print(f'PASS: {len(posts)} sources, {len(index)} index rows, unique URLs, rendered HTML')
