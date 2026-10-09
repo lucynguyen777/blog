@@ -135,9 +135,11 @@ integration test. Token errors are reported without exposing credentials.
 ## Verification and activation
 
 1. Run the required factory checks plus the social unittest suite.
-2. The `codex/facebook-*` branch push runs a **full 10-source local AI dry-run**
+2. The initial branch push ran a **full 10-source local AI dry-run**
    on Actions, without Meta secrets; inspect its artifacts and elapsed time.
-   Re-run `prepare` manually on the default branch if further review is needed.
+   Re-run `prepare` manually on the default branch if further review is needed;
+   a `codex/facebook-*` branch commit containing `[ai-dry-run]` also requests
+   this expensive test without running it after every small fix.
 3. Supply Meta secrets and run read-only `preflight`.
 4. Obtain authorization for a controlled Meta write integration test; dry-run
    alone does not prove API scheduling works. Inspect native scheduled time and

@@ -54,3 +54,36 @@ jobs:
           path: out/facebook/
           retention-days: 7
           if-no-files-found: ignore
+
+  state-check:
+    needs: tests
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/facebook-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exercise durable state with runner token, without Meta credentials
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'scripts')
+          from facebook_pipeline import Store
+          store = Store(remote=True)
+          path = 'checks/' + os.environ['GITHUB_RUN_ID'] + '.json'
+          store.read(path)
+          store.write(path, {'phase': 'created', 'live_enabled': False})
+          assert store.read(path)['phase'] == 'created'
+          store.write(path, {'phase': 'CAS-read-write-verified', 'live_enabled': False})
+          assert store.read(path)['phase'] == 'CAS-read-write-verified'
+          print('Durable GitHub state read/write/CAS verified; no Meta requests')
+          PY
