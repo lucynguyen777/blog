@@ -45,5 +45,8 @@
     "require_single_h1": true,
     "check_broken_internal_links": true,
     "check_missing_alt": true
+  },
+  "analytics": {
+    "ga4_measurement_id": "G-DBJ2BMHTL4"
   }
 }
