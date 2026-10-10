@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 .DS_Store
 reports/*.tmp
+reports/factory-audit.csv
+reports/factory-audit.md
+reports/factory-orphans.txt
