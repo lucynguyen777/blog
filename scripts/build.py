@@ -206,7 +206,7 @@ for p in P:
  sections=''.join(f'<section id="muc-{i+1}"><h2>{E(t)}</h2>{b}</section>' for i,(t,b) in enumerate(p['sections']))
  if p.get('faq'):
   n=len(p['sections'])+1
-  sections+=f'<section id="muc-{n}" class="article-faq"><h2>Câu hỏi thường gặp khi thuê xe máy Hà Nội</h2>'+''.join(f'<details class="faq-item"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for q,a in p['faq'])+'</section>'
+  sections+=f'<section id="muc-{n}" class="article-faq"><h2>{E(p.get("faqTitle","Câu hỏi thường gặp khi thuê xe máy Hà Nội"))}</h2>'+''.join(f'<details class="faq-item"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for q,a in p['faq'])+'</section>'
  related=[q for q in sorted(P,key=lambda q: q["parent"]!=p["url"]) if q['url']!=p['url'] and q['kind'] not in ['hub','page'] and (q['hub']==p['hub'] or (p['hub'] in ['du-lich','kinh-nghiem','xe-may','xe-dien','bao-duong','luat-giao-thong'] and q['url']=='/thue-xe-may/ha-noi/'))][:3]
  if p['kind']=='page':
   if p['url']=='/faq/':
