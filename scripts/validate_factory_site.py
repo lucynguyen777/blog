@@ -16,6 +16,7 @@ for p in posts:
   if f'<link rel="canonical" href="{site["url"]}{p["url"]}">' not in html_txt:errors.append('invalid canonical '+p['url'])
   title=p.get('title','')
   if len(title)<10 or len(title)>120:errors.append(f'abnormal title length ({len(title)}): '+p['url'])
+  if p.get('kind') not in ('hub','page') and 'href="/tac-gia/nguyen-ha/" rel="author"' not in html_txt:errors.append('byline without author link '+p['url'])
   imgs=re.findall(r'<img\s+([^>]+)>', html_txt)
   for img in imgs:
    if 'alt=' not in img:errors.append('img missing alt in '+p['url'])
@@ -43,6 +44,9 @@ for p in posts:
  if p['url'] not in in_sitemap:errors.append('not in sitemap '+p['url'])
 for u in in_sitemap:
  if not (ROOT/u.strip('/')/'index.html').exists() and u!='/':errors.append('sitemap URL without HTML '+u)
+author=ROOT/'tac-gia/nguyen-ha/index.html'
+if not author.exists() or '"@type": "Person"' not in author.read_text():errors.append('missing author page with Person schema')
+if '/tac-gia/nguyen-ha/' not in in_sitemap:errors.append('author page not in sitemap')
 if 'Sitemap: '+site['url']+'/sitemap.xml' not in (ROOT/'robots.txt').read_text():errors.append('robots.txt does not point at sitemap.xml')
 if site['hours']!='08:00–17:00 hằng ngày':errors.append('NAP hours drift')
 if errors:

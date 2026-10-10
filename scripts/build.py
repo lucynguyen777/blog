@@ -65,6 +65,9 @@ import zoneinfo,subprocess
 from datetime import datetime
 VN_TZ=zoneinfo.ZoneInfo('Asia/Ho_Chi_Minh')
 FALLBACK_ISO='2026-10-06T08:00:00+07:00'
+# Byline used on every article; the author page only states facts already in the repo.
+AUTHOR_NAME='Nguyễn Hà'
+AUTHOR_URL='/tac-gia/nguyen-ha/'
 GIT_SOURCES=['content/articles','content/posts.json','content/pages.json','content/faq.json','content/site.json','config/business-facts.json']
 def git_source_dates():
  """Return ({path: last commit ISO}, {path: first-add commit ISO}) or empty dicts."""
@@ -116,10 +119,11 @@ for p in P:
   pub=to_vn(QUEUE_PASS.get(p.get('id'),'')) or to_vn(GIT_ADDED.get(src,'')) or to_vn(QUEUE_ANY.get(p.get('id'),''))
  if pub is None and mod is None: pub=mod=datetime.fromisoformat(FALLBACK_ISO)
  # Without a real publish date, the one real date is used for both fields.
+ p['has_publish_date']=pub is not None
  if pub is None: pub=mod
  if mod is None or mod<pub: mod=pub
  p['publish_dt']=pub;p['modified_dt']=mod
- p['publish_iso']=pub.isoformat();p['modified_iso']=mod.isoformat()
+ p['publish_iso']=pub.isoformat(timespec='seconds');p['modified_iso']=mod.isoformat(timespec='seconds')
  p['publish_display']=fmt_display(pub);p['modified_display']=fmt_display(mod)
  p['publish_time']=pub.strftime('%H:%M');p['publish_date']=pub.strftime('%d.%m.%Y')
 
@@ -257,14 +261,20 @@ for p in P:
   cta_block=T.render_conditional_cta(p['hub'])
   author_block=T.render_author_box()
   related_block=T.PARTIAL_RELATED_POSTS.format(related_cards_html=''.join(card(q) for q in related)) if related else ''
-  pub_display=p.get('publish_display','08:00 06.10.2026')
-  pub_iso=p.get('publish_iso','2026-10-06T08:00:00+07:00')
-  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">{E(hub["label"])}</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p><span class="meta">Nguyễn Hà · Cập nhật {pub_display}</span></header><div class="article-layout"><article class="article-body">{sections}{cta_block}{author_block}<p><a href="{p["parent"]}">Về {E(par["title"] if par else hub["label"])}</a></p></article><aside class="article-aside">{aside}</aside></div>{related_block}'
+  pub_display=p['publish_display'];pub_iso=p['publish_iso']
+  mod_display=p['modified_display'];mod_iso=p['modified_iso']
+  if p.get('has_publish_date'):
+   dates_html=f'Đăng <time datetime="{pub_iso}">{pub_display}</time>'
+   if mod_display!=pub_display:dates_html+=f' · Cập nhật <time datetime="{mod_iso}">{mod_display}</time>'
+  else:
+   dates_html=f'Cập nhật <time datetime="{mod_iso}">{mod_display}</time>'
+  byline=f'<span class="meta"><a href="{AUTHOR_URL}" rel="author">{E(AUTHOR_NAME)}</a> · {dates_html}</span>'
+  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">{E(hub["label"])}</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p>{byline}</header><div class="article-layout"><article class="article-body">{sections}{cta_block}{author_block}<p><a href="{p["parent"]}">Về {E(par["title"] if par else hub["label"])}</a></p></article><aside class="article-aside">{aside}</aside></div>{related_block}'
  bc=[{'@type':'ListItem','position':1,'name':'Trang chủ','item':S['url']+'/'}]
  if p['kind'] not in ['hub','page']:bc.append({'@type':'ListItem','position':2,'name':hub['label'],'item':S['url']+hub['url']})
  bc.append({'@type':'ListItem','position':len(bc)+1,'name':p['title'],'item':S['url']+p['url']})
  extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':bc}]
- if p['kind'] not in ['hub','page']:extra.append({'@context':'https://schema.org','@type':'BlogPosting','headline':p['title'],'description':p['excerpt'],'mainEntityOfPage':S['url']+p['url'],'datePublished':pub_iso,'dateModified':pub_iso,'inLanguage':'vi-VN',**({'wordCount':p['wordCount']} if 'wordCount' in p else {}),'author':{'@type':'Organization','name':S['name']}})
+ if p['kind'] not in ['hub','page']:extra.append({'@context':'https://schema.org','@type':'BlogPosting','headline':p['title'],'description':p['excerpt'],'mainEntityOfPage':S['url']+p['url'],'datePublished':p['publish_iso'],'dateModified':p['modified_iso'],'inLanguage':'vi-VN',**({'wordCount':p['wordCount']} if 'wordCount' in p else {}),'author':{'@type':'Person','@id':S['url']+AUTHOR_URL+'#person','name':AUTHOR_NAME,'url':S['url']+AUTHOR_URL}})
  if p['url']=='/lien-he/':
   extra.append(local)
   page+=local_map()
@@ -276,6 +286,22 @@ for p in P:
  if p['url']=='/faq/':extra.append({'@context':'https://schema.org','@type':'FAQPage','mainEntity':[{'@type':'Question','name':q,'acceptedAnswer':{'@type':'Answer','text':a}} for q,a in FAQ]})
  write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)))
 (ROOT/'404.html').write_text(shell('Không tìm thấy trang','Trang bạn đang tìm không tồn tại.','/404.html','<section class="notice404"><p class="eyebrow">404</p><h1>Ta đổi hướng nhé.</h1><p>Trang này không còn ở địa chỉ bạn vừa mở.</p><a class="pill gold" href="/">Về trang chủ</a></section>',noindex=True))
+
+# Author page: only repo facts (byline name, brand, address, hours, phone).
+FACTS=json.loads((ROOT/'config/business-facts.json').read_text())
+author_articles=[q for q in reversed(P) if q['kind'] not in ['hub','page']]
+author_person={'@type':'Person','@id':S['url']+AUTHOR_URL+'#person','name':AUTHOR_NAME,'url':S['url']+AUTHOR_URL,'worksFor':{'@id':S['url']+'/#organization'}}
+author_extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':[{'@type':'ListItem','position':1,'name':'Trang chủ','item':S['url']+'/'},{'@type':'ListItem','position':2,'name':AUTHOR_NAME,'item':S['url']+AUTHOR_URL}]},
+ {'@context':'https://schema.org','@type':'ProfilePage','url':S['url']+AUTHOR_URL,'name':'Tác giả '+AUTHOR_NAME,'inLanguage':'vi-VN','mainEntity':author_person}]
+author_desc=f'{AUTHOR_NAME} là tên ký trên các bài viết của Nguyễn Hà Journal, blog của {FACTS["brand"]}.'
+author_body=(f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(AUTHOR_NAME)}</span></nav>'
+ f'<header class="page-heading"><p class="eyebrow">TÁC GIẢ</p><h1>{E(AUTHOR_NAME)}</h1><p>{E(author_desc)}</p></header>'
+ f'<article class="article-body information-page">'
+ f'<section id="muc-1"><h2>Về tên ký bài</h2><p>{E(author_desc)} Các bài viết chia sẻ kiến thức xe máy, xe điện, du lịch và kinh nghiệm di chuyển tại Hà Nội. Hiện có {format(len(author_articles),",").replace(",",".")} bài viết mang tên ký này.</p></section>'
+ f'<section id="muc-2"><h2>Thông tin cửa hàng</h2><p><strong>{E(FACTS["brand"])}</strong><br>Địa chỉ: {E(FACTS["address"])} ({E(FACTS["landmark"])})<br>Giờ mở cửa: {E(FACTS["hours"])}<br>Điện thoại / Zalo: <a href="tel:{FACTS["phone"].replace(" ","")}">{E(FACTS["phone"])}</a></p><p>Thông tin xe còn sẵn và điều kiện thuê cần được cửa hàng xác nhận trực tiếp.</p></section>'
+ f'<section id="muc-3"><h2>Bài viết mới</h2><p>Xem toàn bộ bài viết theo chuyên mục tại <a href="/cam-nang/">Cẩm nang</a>.</p></section>'
+ '</article><div class="grid">'+''.join(card(q) for q in author_articles[:6])+'</div>')
+write(AUTHOR_URL,shell('Tác giả '+AUTHOR_NAME,author_desc,AUTHOR_URL,author_body,author_extra))
 
 # Older published routes can survive changes to the article source. Keep their
 # body intact while refreshing the shared shell and brand metadata as well.
@@ -332,6 +358,7 @@ def lastmod_for(p):
  return p.get('modified_dt') or FALLBACK_DT
 indexed=[p for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
 page_entries=[('/',SITE_NEWEST)]+[(p['url'],lastmod_for(p)) for p in indexed if not is_factory(p)]
+page_entries.append((AUTHOR_URL,src_modified('content/site.json','config/business-facts.json') or FALLBACK_DT))
 post_entries=[(p['url'],lastmod_for(p)) for p in indexed if is_factory(p)]
 urls=[u for u,_ in page_entries+post_entries]
 SITEMAP_CHUNK=40000  # well under the 50,000-URL protocol limit
