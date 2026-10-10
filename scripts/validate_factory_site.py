@@ -4,7 +4,12 @@ import json,re,sys
 ROOT=Path(__file__).resolve().parents[1];errors=[]
 site=json.loads((ROOT/'content/site.json').read_text())
 posts=json.loads((ROOT/'content/posts.json').read_text())
-for p in sorted((ROOT/'content/articles').glob('*.json')):posts.append(json.loads(p.read_text()))
+factory_urls=set()
+for p in sorted((ROOT/'content/articles').glob('*.json')):
+ a=json.loads(p.read_text());posts.append(a);factory_urls.add(a['url'])
+cfg=json.loads((ROOT/'config/content-factory.json').read_text())
+noindex_factory=bool(cfg.get('noindex_factory_articles',False))
+NOINDEX_META='<meta name="robots" content="noindex,follow">'
 urls=[p['url'] for p in posts]
 if len(urls)!=len(set(urls)):errors.append('duplicate article URL')
 for p in posts:
@@ -14,6 +19,7 @@ for p in posts:
   html_txt=out.read_text()
   if html_txt.count('<h1')!=1:errors.append('H1 count '+p['url'])
   if f'<link rel="canonical" href="{site["url"]}{p["url"]}">' not in html_txt:errors.append('invalid canonical '+p['url'])
+  if p['url'] in factory_urls and (NOINDEX_META in html_txt)!=noindex_factory:errors.append(f'robots meta does not match noindex_factory_articles={noindex_factory}: '+p['url'])
   title=p.get('title','')
   if len(title)<10 or len(title)>120:errors.append(f'abnormal title length ({len(title)}): '+p['url'])
   if p.get('kind') not in ('hub','page') and 'href="/tac-gia/nguyen-ha/" rel="author"' not in html_txt:errors.append('byline without author link '+p['url'])
@@ -41,7 +47,9 @@ except ET.ParseError as exc:errors.append(f'sitemap parse error: {exc}')
 if len(sitemap_urls)!=len(set(sitemap_urls)):errors.append('duplicate sitemap URL')
 in_sitemap=set(sitemap_urls)
 for p in posts:
- if p['url'] not in in_sitemap:errors.append('not in sitemap '+p['url'])
+ excluded=noindex_factory and p['url'] in factory_urls
+ if excluded and p['url'] in in_sitemap:errors.append('noindex factory article in sitemap '+p['url'])
+ if not excluded and p['url'] not in in_sitemap:errors.append('not in sitemap '+p['url'])
 for u in in_sitemap:
  if not (ROOT/u.strip('/')/'index.html').exists() and u!='/':errors.append('sitemap URL without HTML '+u)
 author=ROOT/'tac-gia/nguyen-ha/index.html'

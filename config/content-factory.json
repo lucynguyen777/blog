@@ -7,6 +7,7 @@
   "minimum_words": 1500,
   "maximum_words": 5000,
   "maximum_similarity": 0.86,
+  "noindex_factory_articles": false,
   "search_index_limit": 2500,
   "schedule": "manual only",
   "operating_hours": {

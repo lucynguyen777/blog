@@ -5,6 +5,10 @@ ROOT=Path(__file__).resolve().parent.parent
 S=json.loads((ROOT/'content/site.json').read_text())
 FACTORY_CFG=json.loads((ROOT/'config/content-factory.json').read_text()) if (ROOT/'config/content-factory.json').exists() else {}
 E=html.escape
+# When true, factory articles (content/articles/ shards, not posts.json) are
+# rendered noindex,follow and left out of the sitemap.  Default false = no change.
+NOINDEX_FACTORY=bool(FACTORY_CFG.get('noindex_factory_articles',False))
+def is_factory(p): return str(p.get('_source','')).startswith('content/articles/')
 HUBS=[
 ('thue-xe','Thuê xe','Bảng giá, thủ tục và lựa chọn xe cho từng hành trình.',['Thuê xe máy Hà Nội','Thuê xe 50cc','Thuê xe điện','Theo ngày, tuần, tháng']),
 ('xe-may','Xe máy','Tìm hiểu xe số, xe ga và các mẫu xe quen thuộc.',['Honda','Yamaha','Xe số & xe ga','Đánh giá & so sánh']),
@@ -284,7 +288,7 @@ for p in P:
   extra.append(local)
   page+=local_map()
  if p['url']=='/faq/':extra.append({'@context':'https://schema.org','@type':'FAQPage','mainEntity':[{'@type':'Question','name':q,'acceptedAnswer':{'@type':'Answer','text':a}} for q,a in FAQ]})
- write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)))
+ write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=(p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)) or (NOINDEX_FACTORY and is_factory(p))))
 (ROOT/'404.html').write_text(shell('Không tìm thấy trang','Trang bạn đang tìm không tồn tại.','/404.html','<section class="notice404"><p class="eyebrow">404</p><h1>Ta đổi hướng nhé.</h1><p>Trang này không còn ở địa chỉ bạn vừa mở.</p><a class="pill gold" href="/">Về trang chủ</a></section>',noindex=True))
 
 # Author page: only repo facts (byline name, brand, address, hours, phone).
@@ -345,7 +349,6 @@ for p in searchable:
 # Sitemap index: sitemap-pages.xml (home, hubs, static pages, posts.json) and
 # sitemap-posts.xml (factory shards).  lastmod is the source's own date.
 FALLBACK_DT=datetime.fromisoformat(FALLBACK_ISO)
-def is_factory(p): return str(p.get('_source','')).startswith('content/articles/')
 ARTICLES_ALL=[p for p in P if p['kind'] not in ['hub','page']]
 def newest(items,default=None):
  dts=[q['modified_dt'] for q in items if q.get('modified_dt')]
@@ -359,7 +362,7 @@ def lastmod_for(p):
 indexed=[p for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
 page_entries=[('/',SITE_NEWEST)]+[(p['url'],lastmod_for(p)) for p in indexed if not is_factory(p)]
 page_entries.append((AUTHOR_URL,src_modified('content/site.json','config/business-facts.json') or FALLBACK_DT))
-post_entries=[(p['url'],lastmod_for(p)) for p in indexed if is_factory(p)]
+post_entries=[] if NOINDEX_FACTORY else [(p['url'],lastmod_for(p)) for p in indexed if is_factory(p)]
 urls=[u for u,_ in page_entries+post_entries]
 SITEMAP_CHUNK=40000  # well under the 50,000-URL protocol limit
 def urlset(entries): return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+E(S['url']+u)+'</loc><lastmod>'+d.isoformat(timespec='seconds')+'</lastmod></url>\n' for u,d in entries)+'</urlset>\n'
