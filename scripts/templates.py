@@ -103,12 +103,15 @@ def render_footer(top_links, hubs, contact_box_html):
 def render_card(p, hubs):
     hub_obj = next((h for h in hubs if h['slug'] == p['hub']), None)
     hub_label = hub_obj['label'] if hub_obj else 'Cẩm nang'
+    date_display = p.get('publish_display', '')
+    card_date_html = f' · {E(date_display)}' if date_display else ''
     return PARTIAL_CARD.format(
         card_url=p['url'],
         card_tone=p.get('tone', 'gold'),
         card_title=E(p['title']),
         card_hub_label=E(hub_label),
-        card_excerpt=E(p['excerpt'])
+        card_excerpt=E(p['excerpt']),
+        card_date=card_date_html
     )
 
 def render_conditional_cta(hub_slug):

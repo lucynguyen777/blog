@@ -75,3 +75,22 @@ main{padding-bottom:42px}.footer{padding-bottom:100px}
 .page-link:hover{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
 .page-link.active{background:var(--ink);color:var(--bg);border-color:var(--ink);cursor:default}
 .page-link.prev,.page-link.next{font-size:18px}
+ 
+/* Horizontal scrollbar / slider for recent posts */
+.cam-nang-slider-section{margin-bottom:48px}
+.cam-nang-slider-wrap{position:relative}
+.cam-nang-slider{display:flex;gap:20px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:8px 4px 18px;margin:0 -4px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.cam-nang-slider::-webkit-scrollbar{height:6px}
+.cam-nang-slider::-webkit-scrollbar-track{background:transparent}
+.cam-nang-slider::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+.cam-nang-slider::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.cam-nang-slider .card{flex:0 0 320px;max-width:320px;scroll-snap-align:start}
+@media(max-width:760px){
+  .cam-nang-slider{gap:14px;padding-bottom:14px}
+  .cam-nang-slider .card{flex:0 0 270px;max-width:270px}
+  .cam-nang-slider .card a{display:flex;flex-direction:column}
+  .cam-nang-slider .card-art{min-height:110px;height:110px}
+  .cam-nang-slider .card-content{padding:16px 14px}
+  .cam-nang-slider .card h3{font-size:16px;line-height:1.35}
+  .cam-nang-slider .card p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+}

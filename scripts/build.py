@@ -53,6 +53,41 @@ FAQ=json.loads((ROOT/'content/faq.json').read_text())
 for item in CUSTOM:
  item.update(hub='thue-xe',keywords=item['title'],parent='/',kind='page',art='NH',tone='white')
 P.extend(CUSTOM)
+
+# Map publication timestamps from factory queue
+import zoneinfo
+from datetime import datetime
+VN_TZ=zoneinfo.ZoneInfo('Asia/Ho_Chi_Minh')
+QUEUE_TIMESTAMPS={}
+queue_file=ROOT/'data/factory-queue.jsonl'
+if queue_file.exists():
+ for line in queue_file.read_text(encoding='utf-8').splitlines():
+  if not line.strip(): continue
+  try:
+   entry=json.loads(line)
+   if entry.get('id') and entry.get('timestamp'):
+    QUEUE_TIMESTAMPS[entry['id']]=entry['timestamp']
+  except Exception: pass
+
+for p in P:
+ if p['kind'] in ['hub','page']: continue
+ art_id=p.get('id')
+ ts=QUEUE_TIMESTAMPS.get(art_id)
+ if ts:
+  try:
+   dt=datetime.fromisoformat(ts).astimezone(VN_TZ)
+   p['publish_dt']=dt
+   p['publish_time']=dt.strftime('%H:%M')
+   p['publish_date']=dt.strftime('%d.%m.%Y')
+   p['publish_display']=f"{p['publish_time']} {p['publish_date']}"
+   p['publish_iso']=dt.isoformat()
+  except Exception: pass
+ if 'publish_display' not in p:
+  p['publish_time']='08:00'
+  p['publish_date']='06.10.2026'
+  p['publish_display']='08:00 06.10.2026'
+  p['publish_iso']='2026-10-06T08:00:00+07:00'
+
 TOP_LINKS=[('Trang chủ','/'),('Cẩm nang','/cam-nang/'),('Giới thiệu','/gioi-thieu/')]
 BOTTOM_LINKS=[('FAQ','/faq/'),('Liên hệ','/lien-he/'),('Điều khoản dịch vụ','/dieu-khoan-dich-vu/'),('Chính sách bảo mật','/chinh-sach-bao-mat/')]
 def utility_links(items): return ''.join('<a href="'+u+'">'+E(t)+'</a>' for t,u in items)
@@ -113,13 +148,16 @@ for p in P:
    sections=''.join(f'<details class="faq-item" id="muc-{i+1}"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for i,(q,a) in enumerate(FAQ))
    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
   elif p['url']=='/cam-nang/':
+    recent_10=[q for q in reversed(P) if q['kind'] not in ['hub','page']][:10]
+    slider_cards_html=''.join(card(q) for q in recent_10)
+    slider_block=f'<section class="cam-nang-slider-section"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">MỚI CẬP NHẬT</p><h2 style="font-size:26px">10 bài viết mới nhất</h2><p>Các nội dung kiến thức, hướng dẫn và kinh nghiệm vừa được cập nhật trên blog.</p></div></div><div class="cam-nang-slider-wrap"><div class="cam-nang-slider">{slider_cards_html}</div></div></section>'
     hub_blocks=[]
     for h in NAV:
      h_articles=[q for q in reversed(P) if q['hub']==h['slug'] and q['kind'] not in ['hub','page']]
      if h_articles:
       hub_blocks.append(f'<div class="cam-nang-hub" style="margin-bottom:48px"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">{E(h["label"])}</p><h2 style="font-size:26px"><a href="{h["url"]}">{E(h["label"])}</a></h2><p>{E(h["description"])}</p></div><a class="text-link" href="{h["url"]}">Xem tất cả ({len(h_articles)})</a></div><div class="grid">' + ''.join(card(q) for q in h_articles[:3]) + '</div></div>')
-    sections_cam_nang=f'<div class="cam-nang-intro" style="margin-bottom:36px"><p>{E(p["excerpt"])}</p></div>'+''.join(hub_blocks)
-    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section" style="padding-top:10px">{sections_cam_nang}</section>'
+    sections_cam_nang=f'<div class="cam-nang-intro" style="margin-bottom:36px"><p>{E(p["excerpt"])}</p></div>{slider_block}'+''.join(hub_blocks)
+    page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section" style="padding-top:10px">{sections_cam_nang}</section>'
   else:
    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
  elif p['kind']=='hub':
@@ -152,12 +190,14 @@ for p in P:
   cta_block=T.render_conditional_cta(p['hub'])
   author_block=T.render_author_box()
   related_block=T.PARTIAL_RELATED_POSTS.format(related_cards_html=''.join(card(q) for q in related)) if related else ''
-  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">{E(hub["label"])}</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p><span class="meta">Nguyễn Hà · Cập nhật 06.10.2026</span></header><div class="article-layout"><article class="article-body">{sections}{cta_block}{author_block}<p><a href="{p["parent"]}">Về {E(par["title"] if par else hub["label"])}</a></p></article><aside class="article-aside">{aside}</aside></div>{related_block}'
+  pub_display=p.get('publish_display','08:00 06.10.2026')
+  pub_iso=p.get('publish_iso','2026-10-06T08:00:00+07:00')
+  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">{E(hub["label"])}</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p><span class="meta">Nguyễn Hà · Cập nhật {pub_display}</span></header><div class="article-layout"><article class="article-body">{sections}{cta_block}{author_block}<p><a href="{p["parent"]}">Về {E(par["title"] if par else hub["label"])}</a></p></article><aside class="article-aside">{aside}</aside></div>{related_block}'
  bc=[{'@type':'ListItem','position':1,'name':'Trang chủ','item':S['url']+'/'}]
  if p['kind'] not in ['hub','page']:bc.append({'@type':'ListItem','position':2,'name':hub['label'],'item':S['url']+hub['url']})
  bc.append({'@type':'ListItem','position':len(bc)+1,'name':p['title'],'item':S['url']+p['url']})
  extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':bc}]
- if p['kind'] not in ['hub','page']:extra.append({'@context':'https://schema.org','@type':'BlogPosting','headline':p['title'],'description':p['excerpt'],'mainEntityOfPage':S['url']+p['url'],'datePublished':'2026-10-06','dateModified':'2026-10-06','inLanguage':'vi-VN',**({'wordCount':p['wordCount']} if 'wordCount' in p else {}),'author':{'@type':'Organization','name':S['name']}})
+ if p['kind'] not in ['hub','page']:extra.append({'@context':'https://schema.org','@type':'BlogPosting','headline':p['title'],'description':p['excerpt'],'mainEntityOfPage':S['url']+p['url'],'datePublished':pub_iso,'dateModified':pub_iso,'inLanguage':'vi-VN',**({'wordCount':p['wordCount']} if 'wordCount' in p else {}),'author':{'@type':'Organization','name':S['name']}})
  if p['url']=='/lien-he/':
   extra.append(local)
   page+=local_map()
