@@ -5,6 +5,10 @@ ROOT=Path(__file__).resolve().parent.parent
 S=json.loads((ROOT/'content/site.json').read_text())
 FACTORY_CFG=json.loads((ROOT/'config/content-factory.json').read_text()) if (ROOT/'config/content-factory.json').exists() else {}
 E=html.escape
+# When true, factory articles (content/articles/ shards, not posts.json) are
+# rendered noindex,follow and left out of the sitemap.  Default false = no change.
+NOINDEX_FACTORY=bool(FACTORY_CFG.get('noindex_factory_articles',False))
+def is_factory(p): return str(p.get('_source','')).startswith('content/articles/')
 HUBS=[
 ('thue-xe','Thuê xe','Bảng giá, thủ tục và lựa chọn xe cho từng hành trình.',['Thuê xe máy Hà Nội','Thuê xe 50cc','Thuê xe điện','Theo ngày, tuần, tháng']),
 ('xe-may','Xe máy','Tìm hiểu xe số, xe ga và các mẫu xe quen thuộc.',['Honda','Yamaha','Xe số & xe ga','Đánh giá & so sánh']),
@@ -41,24 +45,61 @@ add('/lien-he/','Liên hệ Thuê xe máy Nguyễn Hà','thue-xe','Địa chỉ,
 posts_file=ROOT/'content/posts.json'
 if not posts_file.exists(): posts_file.write_text(json.dumps(P,ensure_ascii=False,indent=2))
 P=json.loads(posts_file.read_text())
+for p in P: p['_source']='content/posts.json'
 # Factory articles are sharded so tens of thousands of records do not contend
 # on one JSON file.  The legacy posts.json remains supported.
 article_dir=ROOT/'content/articles'
 if article_dir.exists():
  for article_file in sorted(article_dir.glob('*.json')):
   article=json.loads(article_file.read_text())
+  article['_source']='content/articles/'+article_file.name
   if not any(p['url']==article['url'] for p in P): P.append(article)
 CUSTOM=json.loads((ROOT/'content/pages.json').read_text())
 FAQ=json.loads((ROOT/'content/faq.json').read_text())
 for item in CUSTOM:
- item.update(hub='thue-xe',keywords=item['title'],parent='/',kind='page',art='NH',tone='white')
+ item.update(hub='thue-xe',keywords=item['title'],parent='/',kind='page',art='NH',tone='white',_source='content/pages.json')
 P.extend(CUSTOM)
 
-# Map publication timestamps from factory queue
-import zoneinfo
+# Real source dates.  datePublished of a factory article is the first time the
+# QA gate passed it (append-only queue log) or, failing that, the commit that
+# added its shard; lastmod/dateModified is the last commit touching the source
+# file.  All git dates come from ONE `git log` pass.  Shallow clones or missing
+# git fall back to the previous fixed date instead of crashing.
+import zoneinfo,subprocess
 from datetime import datetime
 VN_TZ=zoneinfo.ZoneInfo('Asia/Ho_Chi_Minh')
-QUEUE_TIMESTAMPS={}
+FALLBACK_ISO='2026-10-06T08:00:00+07:00'
+# Byline used on every article; the author page only states facts already in the repo.
+AUTHOR_NAME='Nguyễn Hà'
+AUTHOR_URL='/tac-gia/nguyen-ha/'
+GIT_SOURCES=['content/articles','content/posts.json','content/pages.json','content/faq.json','content/site.json','config/business-facts.json']
+def git_source_dates():
+ """Return ({path: last commit ISO}, {path: first-add commit ISO}) or empty dicts."""
+ try:
+  shallow=subprocess.run(['git','rev-parse','--is-shallow-repository'],cwd=ROOT,capture_output=True,text=True,timeout=30)
+  if shallow.returncode!=0 or shallow.stdout.strip()!='false':
+   print('NOTE: git history unavailable or shallow; using fallback dates for lastmod/dateModified')
+   return {},{}
+  out=subprocess.run(['git','-c','core.quotepath=off','log','--format=%x00%cI','--name-status','--no-renames','--']+GIT_SOURCES,cwd=ROOT,capture_output=True,text=True,check=True,timeout=300).stdout
+ except Exception as exc:
+  print(f'NOTE: git dates unavailable ({exc}); using fallback dates')
+  return {},{}
+ modified={};added={};cur=None
+ for line in out.splitlines():
+  if line.startswith('\x00'):cur=line[1:].strip();continue
+  if not line.strip() or cur is None or '\t' not in line:continue
+  status,path=line.split('\t',1)
+  modified.setdefault(path,cur)  # newest first
+  if status.startswith('A'):added[path]=cur  # keeps overwriting -> oldest add wins
+ return modified,added
+GIT_MODIFIED,GIT_ADDED=git_source_dates()
+def to_vn(ts):
+ try:return datetime.fromisoformat(ts).astimezone(VN_TZ)
+ except Exception:return None
+def src_modified(*paths):
+ dts=[d for d in (to_vn(GIT_MODIFIED[x]) for x in paths if x in GIT_MODIFIED) if d]
+ return max(dts) if dts else None
+QUEUE_PASS={};QUEUE_ANY={}
 queue_file=ROOT/'data/factory-queue.jsonl'
 if queue_file.exists():
  for line in queue_file.read_text(encoding='utf-8').splitlines():
@@ -66,27 +107,29 @@ if queue_file.exists():
   try:
    entry=json.loads(line)
    if entry.get('id') and entry.get('timestamp'):
-    QUEUE_TIMESTAMPS[entry['id']]=entry['timestamp']
+    QUEUE_ANY[entry['id']]=entry['timestamp']
+    if (entry.get('qa') or {}).get('pass') and entry['id'] not in QUEUE_PASS: QUEUE_PASS[entry['id']]=entry['timestamp']
   except Exception: pass
-
+def fmt_display(dt): return dt.strftime('%H:%M %d.%m.%Y')
 for p in P:
- if p['kind'] in ['hub','page']: continue
- art_id=p.get('id')
- ts=QUEUE_TIMESTAMPS.get(art_id)
- if ts:
-  try:
-   dt=datetime.fromisoformat(ts).astimezone(VN_TZ)
-   p['publish_dt']=dt
-   p['publish_time']=dt.strftime('%H:%M')
-   p['publish_date']=dt.strftime('%d.%m.%Y')
-   p['publish_display']=f"{p['publish_time']} {p['publish_date']}"
-   p['publish_iso']=dt.isoformat()
-  except Exception: pass
- if 'publish_display' not in p:
-  p['publish_time']='08:00'
-  p['publish_date']='06.10.2026'
-  p['publish_display']='08:00 06.10.2026'
-  p['publish_iso']='2026-10-06T08:00:00+07:00'
+ src=p.get('_source')
+ mod=src_modified(src) if src else None
+ if p['kind'] in ['hub','page']:
+  if mod: p['modified_dt']=mod
+  continue
+ pub=None
+ if src and src.startswith('content/articles/'):
+  # Only factory shards have a per-article publish date.
+  pub=to_vn(QUEUE_PASS.get(p.get('id'),'')) or to_vn(GIT_ADDED.get(src,'')) or to_vn(QUEUE_ANY.get(p.get('id'),''))
+ if pub is None and mod is None: pub=mod=datetime.fromisoformat(FALLBACK_ISO)
+ # Without a real publish date, the one real date is used for both fields.
+ p['has_publish_date']=pub is not None
+ if pub is None: pub=mod
+ if mod is None or mod<pub: mod=pub
+ p['publish_dt']=pub;p['modified_dt']=mod
+ p['publish_iso']=pub.isoformat(timespec='seconds');p['modified_iso']=mod.isoformat(timespec='seconds')
+ p['publish_display']=fmt_display(pub);p['modified_display']=fmt_display(mod)
+ p['publish_time']=pub.strftime('%H:%M');p['publish_date']=pub.strftime('%d.%m.%Y')
 
 TOP_LINKS=[('Trang chủ','/'),('Cẩm nang','/cam-nang/'),('Giới thiệu','/gioi-thieu/')]
 BOTTOM_LINKS=[('FAQ','/faq/'),('Liên hệ','/lien-he/'),('Điều khoản dịch vụ','/dieu-khoan-dich-vu/'),('Chính sách bảo mật','/chinh-sach-bao-mat/')]
@@ -163,7 +206,7 @@ for p in P:
  sections=''.join(f'<section id="muc-{i+1}"><h2>{E(t)}</h2>{b}</section>' for i,(t,b) in enumerate(p['sections']))
  if p.get('faq'):
   n=len(p['sections'])+1
-  sections+=f'<section id="muc-{n}" class="article-faq"><h2>Câu hỏi thường gặp khi thuê xe máy Hà Nội</h2>'+''.join(f'<details class="faq-item"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for q,a in p['faq'])+'</section>'
+  sections+=f'<section id="muc-{n}" class="article-faq"><h2>{E(p.get("faqTitle","Câu hỏi thường gặp khi thuê xe máy Hà Nội"))}</h2>'+''.join(f'<details class="faq-item"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for q,a in p['faq'])+'</section>'
  related=[q for q in sorted(P,key=lambda q: q["parent"]!=p["url"]) if q['url']!=p['url'] and q['kind'] not in ['hub','page'] and (q['hub']==p['hub'] or (p['hub'] in ['du-lich','kinh-nghiem','xe-may','xe-dien','bao-duong','luat-giao-thong'] and q['url']=='/thue-xe-may/ha-noi/'))][:3]
  if p['kind']=='page':
   if p['url']=='/faq/':
@@ -222,14 +265,20 @@ for p in P:
   cta_block=T.render_conditional_cta(p['hub'])
   author_block=T.render_author_box()
   related_block=T.PARTIAL_RELATED_POSTS.format(related_cards_html=''.join(card(q) for q in related)) if related else ''
-  pub_display=p.get('publish_display','08:00 06.10.2026')
-  pub_iso=p.get('publish_iso','2026-10-06T08:00:00+07:00')
-  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">{E(hub["label"])}</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p><span class="meta">Nguyễn Hà · Cập nhật {pub_display}</span></header><div class="article-layout"><article class="article-body">{sections}{cta_block}{author_block}<p><a href="{p["parent"]}">Về {E(par["title"] if par else hub["label"])}</a></p></article><aside class="article-aside">{aside}</aside></div>{related_block}'
+  pub_display=p['publish_display'];pub_iso=p['publish_iso']
+  mod_display=p['modified_display'];mod_iso=p['modified_iso']
+  if p.get('has_publish_date'):
+   dates_html=f'Đăng <time datetime="{pub_iso}">{pub_display}</time>'
+   if mod_display!=pub_display:dates_html+=f' · Cập nhật <time datetime="{mod_iso}">{mod_display}</time>'
+  else:
+   dates_html=f'Cập nhật <time datetime="{mod_iso}">{mod_display}</time>'
+  byline=f'<span class="meta"><a href="{AUTHOR_URL}" rel="author">{E(AUTHOR_NAME)}</a> · {dates_html}</span>'
+  page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><p class="eyebrow">{E(hub["label"])}</p><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p>{byline}</header><div class="article-layout"><article class="article-body">{sections}{cta_block}{author_block}<p><a href="{p["parent"]}">Về {E(par["title"] if par else hub["label"])}</a></p></article><aside class="article-aside">{aside}</aside></div>{related_block}'
  bc=[{'@type':'ListItem','position':1,'name':'Trang chủ','item':S['url']+'/'}]
  if p['kind'] not in ['hub','page']:bc.append({'@type':'ListItem','position':2,'name':hub['label'],'item':S['url']+hub['url']})
  bc.append({'@type':'ListItem','position':len(bc)+1,'name':p['title'],'item':S['url']+p['url']})
  extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':bc}]
- if p['kind'] not in ['hub','page']:extra.append({'@context':'https://schema.org','@type':'BlogPosting','headline':p['title'],'description':p['excerpt'],'mainEntityOfPage':S['url']+p['url'],'datePublished':pub_iso,'dateModified':pub_iso,'inLanguage':'vi-VN',**({'wordCount':p['wordCount']} if 'wordCount' in p else {}),'author':{'@type':'Organization','name':S['name']}})
+ if p['kind'] not in ['hub','page']:extra.append({'@context':'https://schema.org','@type':'BlogPosting','headline':p['title'],'description':p['excerpt'],'mainEntityOfPage':S['url']+p['url'],'datePublished':p['publish_iso'],'dateModified':p['modified_iso'],'inLanguage':'vi-VN',**({'wordCount':p['wordCount']} if 'wordCount' in p else {}),'author':{'@type':'Person','@id':S['url']+AUTHOR_URL+'#person','name':AUTHOR_NAME,'url':S['url']+AUTHOR_URL}})
  if p['url']=='/lien-he/':
   extra.append(local)
   page+=local_map()
@@ -239,8 +288,24 @@ for p in P:
   extra.append(local)
   page+=local_map()
  if p['url']=='/faq/':extra.append({'@context':'https://schema.org','@type':'FAQPage','mainEntity':[{'@type':'Question','name':q,'acceptedAnswer':{'@type':'Answer','text':a}} for q,a in FAQ]})
- write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)))
+ write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=(p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)) or (NOINDEX_FACTORY and is_factory(p))))
 (ROOT/'404.html').write_text(shell('Không tìm thấy trang','Trang bạn đang tìm không tồn tại.','/404.html','<section class="notice404"><p class="eyebrow">404</p><h1>Ta đổi hướng nhé.</h1><p>Trang này không còn ở địa chỉ bạn vừa mở.</p><a class="pill gold" href="/">Về trang chủ</a></section>',noindex=True))
+
+# Author page: only repo facts (byline name, brand, address, hours, phone).
+FACTS=json.loads((ROOT/'config/business-facts.json').read_text())
+author_articles=[q for q in reversed(P) if q['kind'] not in ['hub','page']]
+author_person={'@type':'Person','@id':S['url']+AUTHOR_URL+'#person','name':AUTHOR_NAME,'url':S['url']+AUTHOR_URL,'worksFor':{'@id':S['url']+'/#organization'}}
+author_extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':[{'@type':'ListItem','position':1,'name':'Trang chủ','item':S['url']+'/'},{'@type':'ListItem','position':2,'name':AUTHOR_NAME,'item':S['url']+AUTHOR_URL}]},
+ {'@context':'https://schema.org','@type':'ProfilePage','url':S['url']+AUTHOR_URL,'name':'Tác giả '+AUTHOR_NAME,'inLanguage':'vi-VN','mainEntity':author_person}]
+author_desc=f'{AUTHOR_NAME} là tên ký trên các bài viết của Nguyễn Hà Journal, blog của {FACTS["brand"]}.'
+author_body=(f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(AUTHOR_NAME)}</span></nav>'
+ f'<header class="page-heading"><p class="eyebrow">TÁC GIẢ</p><h1>{E(AUTHOR_NAME)}</h1><p>{E(author_desc)}</p></header>'
+ f'<article class="article-body information-page">'
+ f'<section id="muc-1"><h2>Về tên ký bài</h2><p>{E(author_desc)} Các bài viết chia sẻ kiến thức xe máy, xe điện, du lịch và kinh nghiệm di chuyển tại Hà Nội. Hiện có {format(len(author_articles),",").replace(",",".")} bài viết mang tên ký này.</p></section>'
+ f'<section id="muc-2"><h2>Thông tin cửa hàng</h2><p><strong>{E(FACTS["brand"])}</strong><br>Địa chỉ: {E(FACTS["address"])} ({E(FACTS["landmark"])})<br>Giờ mở cửa: {E(FACTS["hours"])}<br>Điện thoại / Zalo: <a href="tel:{FACTS["phone"].replace(" ","")}">{E(FACTS["phone"])}</a></p><p>Thông tin xe còn sẵn và điều kiện thuê cần được cửa hàng xác nhận trực tiếp.</p></section>'
+ f'<section id="muc-3"><h2>Bài viết mới</h2><p>Xem toàn bộ bài viết theo chuyên mục tại <a href="/cam-nang/">Cẩm nang</a>.</p></section>'
+ '</article><div class="grid">'+''.join(card(q) for q in author_articles[:6])+'</div>')
+write(AUTHOR_URL,shell('Tác giả '+AUTHOR_NAME,author_desc,AUTHOR_URL,author_body,author_extra))
 
 # Older published routes can survive changes to the article source. Keep their
 # body intact while refreshing the shared shell and brand metadata as well.
@@ -281,16 +346,35 @@ for p in searchable:
 (ROOT/'assets/search-index.json').write_text(json.dumps({'version':'2026-10-06','site':S,'documents':index},ensure_ascii=False,separators=(',',':')))
 (ROOT/'assets/navigation.json').write_text(json.dumps({'primary':[dict(label=t,url=u) for t,u in TOP_LINKS],'hubs':NAV,'support':[dict(label=t,url=u) for t,u in BOTTOM_LINKS]},ensure_ascii=False,indent=2))
 (ROOT/'content/editorial-matrix.json').write_text(json.dumps([{'title':p['title'],'keyword':p['keywords'],'hub':p['hub'],'pillar':p['parent'],'url':p['url'],'priority':'P0' if p['hub']=='thue-xe' else 'P1','status':'published',**({'word_count':p['wordCount']} if 'wordCount' in p else {})} for p in P if p['kind'] not in ['hub','page']],ensure_ascii=False,indent=2))
-urls=['/']+[p['url'] for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
+# Sitemap index: sitemap-pages.xml (home, hubs, static pages, posts.json) and
+# sitemap-posts.xml (factory shards).  lastmod is the source's own date.
+FALLBACK_DT=datetime.fromisoformat(FALLBACK_ISO)
+ARTICLES_ALL=[p for p in P if p['kind'] not in ['hub','page']]
+def newest(items,default=None):
+ dts=[q['modified_dt'] for q in items if q.get('modified_dt')]
+ return max(dts) if dts else default
+SITE_NEWEST=newest(ARTICLES_ALL,FALLBACK_DT)
+def lastmod_for(p):
+ if p['kind']=='hub':return newest([q for q in ARTICLES_ALL if q['hub']==p['hub']],SITE_NEWEST)
+ if p['url']=='/cam-nang/':return SITE_NEWEST
+ if p['url']=='/faq/':return src_modified('content/pages.json','content/faq.json') or FALLBACK_DT
+ return p.get('modified_dt') or FALLBACK_DT
+indexed=[p for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
+page_entries=[('/',SITE_NEWEST)]+[(p['url'],lastmod_for(p)) for p in indexed if not is_factory(p)]
+page_entries.append((AUTHOR_URL,src_modified('content/site.json','config/business-facts.json') or FALLBACK_DT))
+post_entries=[] if NOINDEX_FACTORY else [(p['url'],lastmod_for(p)) for p in indexed if is_factory(p)]
+urls=[u for u,_ in page_entries+post_entries]
+SITEMAP_CHUNK=40000  # well under the 50,000-URL protocol limit
+def urlset(entries): return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+E(S['url']+u)+'</loc><lastmod>'+d.isoformat(timespec='seconds')+'</lastmod></url>\n' for u,d in entries)+'</urlset>\n'
 for old in ROOT.glob('sitemap-*.xml'): old.unlink()
-if len(urls)<=40000:
- (ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+S['url']+u+'</loc><lastmod>2026-10-06</lastmod></url>\n' for u in urls)+'</urlset>')
-else:
- names=[]
- for pos in range(0,len(urls),40000):
-  name='sitemap-'+str(pos//40000+1)+'.xml';names.append(name)
-  (ROOT/name).write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+S['url']+u+'</loc><lastmod>2026-10-06</lastmod></url>\n' for u in urls[pos:pos+40000])+'</urlset>')
- (ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<sitemap><loc>'+S['url']+'/'+name+'</loc></sitemap>\n' for name in names)+'</sitemapindex>')
+children=[]
+for base,entries in [('sitemap-pages',page_entries),('sitemap-posts',post_entries)]:
+ for pos in range(0,len(entries),SITEMAP_CHUNK):
+  name=base+('' if pos==0 else '-'+str(pos//SITEMAP_CHUNK+1))+'.xml'
+  chunk=entries[pos:pos+SITEMAP_CHUNK]
+  (ROOT/name).write_text(urlset(chunk))
+  children.append((name,max(d for _,d in chunk)))
+(ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<sitemap><loc>'+S['url']+'/'+name+'</loc><lastmod>'+d.isoformat(timespec='seconds')+'</lastmod></sitemap>\n' for name,d in children)+'</sitemapindex>\n')
 (ROOT/'robots.txt').write_text('User-agent: *\nAllow: /\nSitemap: '+S['url']+'/sitemap.xml\n')
 (ROOT/'CNAME').write_text('thuha.rentbikehanoi.com\n');(ROOT/'.nojekyll').touch()
 print(f'Built {len(P)+1} pages, {len(index)} searchable articles, {len(urls)} sitemap URLs')

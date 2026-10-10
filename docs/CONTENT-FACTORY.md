@@ -14,7 +14,7 @@ Một lượt tối đa 12 bài. GitHub Actions chạy phút 07 và 37 mỗi gi�
 - `data/factory-state.json`: con trỏ duy nhất và số liệu tiến độ.
 - `data/factory-queue.jsonl`: nhật ký append-only cho bài PASS/REJECTED.
 - `data/content-index.jsonl`: cache sinh lại được gồm URL, intent, số từ và hash nội dung. Đây không phải nguồn bài.
-- `content/editorial-matrix.json`, `assets/search-index.json`, `sitemap.xml`: dữ liệu dẫn xuất từ build.
+- `content/editorial-matrix.json`, `assets/search-index.json`, `sitemap.xml` (sitemap index → `sitemap-pages.xml` cho trang chủ/hub/trang tĩnh/`posts.json` và `sitemap-posts.xml` cho bài factory): dữ liệu dẫn xuất từ build. `lastmod` lấy từ ngày commit git cuối cùng của file nguồn (một lượt `git log`); nếu clone nông hoặc không có git thì dùng ngày dự phòng.
 
 Không đẩy sẵn 50.000 dòng queue. Bộ lập kế hoạch dùng mixed-radix để tạo tuần tự hơn 50.000 tổ hợp ổn định từ chủ đề, xe, quận, đối tượng, bối cảnh và search intent. Cách này giữ commit nhỏ và cho phép dừng tức thì.
 
@@ -46,6 +46,11 @@ python3 scripts/content_factory.py reindex
 
 # dừng: tạo STOP_FACTORY ở thư mục gốc rồi commit
 # chạy lại: xóa STOP_FACTORY rồi commit
+
+# tắt bằng config: đặt "enabled": false trong config/content-factory.json
+# (chặn mọi lượt chạy thật, kể cả workflow_dispatch; --dry-run vẫn chạy được)
 ```
+
+`noindex_factory_articles` (mặc định `false`): khi đặt `true`, `scripts/build.py` gắn `<meta name="robots" content="noindex,follow">` cho mọi bài factory trong `content/articles/` (không áp dụng cho `content/posts.json`) và loại chúng khỏi sitemap; validator kiểm tra theo đúng cờ này.
 
 `target_articles` đang để `null`, nên xưởng chỉ dừng bằng thao tác thủ công. Có thể đặt một số nguyên nếu muốn thêm giới hạn cứng. Trước các mốc 20.000, 30.000 và 50.000 cần xem báo cáo trùng lặp và chất lượng. GitHub Pages và trình duyệt không tải một JSON tìm kiếm chứa toàn bộ 50.000 bài; chỉ mục giao diện được giới hạn, còn cache JSONL giữ toàn bộ corpus.
