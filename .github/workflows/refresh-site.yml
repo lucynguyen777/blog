@@ -1,0 +1,43 @@
+name: Refresh site templates
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build.py'
+      - 'scripts/templates.py'
+      - 'templates/**'
+      - 'config/site-config.json'
+      - 'assets/nguyen-ha-*'
+      - 'assets/apple-touch-icon.png'
+      - 'assets/favicon*'
+      - '.github/workflows/refresh-site.yml'
+permissions:
+  contents: write
+concurrency:
+  group: nguyen-ha-content-factory
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refresh from latest sources
+        run: |
+          git pull --ff-only origin main
+          python3 scripts/build.py
+          python3 scripts/validate_factory_site.py
+      - name: Commit rendered pages
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'nguyen-ha-site[bot]'
+          git config user.email 'nguyen-ha-site[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'build: refresh logo and image SEO across rendered pages'
+          git pull --rebase origin main
+          git push origin HEAD:main

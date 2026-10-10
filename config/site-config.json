@@ -6,8 +6,13 @@
     "slogan": "Mỗi chuyến đi. Một góc Hà Nội.",
     "brand_mark": "n.",
     "brand_sub": "JOURNAL · HÀ NỘI",
-    "og_image": "/assets/hanoi.webp",
-    "theme_color": "#ffa266"
+    "og_image": "/assets/nguyen-ha-journal-social.png",
+    "theme_color": "#ffa266",
+    "logo": "/assets/nguyen-ha-logo.png",
+    "logo_svg": "/assets/nguyen-ha-logo.svg",
+    "og_image_alt": "Thuê xe máy Nguyễn Hà — Mỗi chuyến đi. Một góc Hà Nội.",
+    "og_image_width": 1200,
+    "og_image_height": 630
   },
   "business": {
     "brand": "Thuê xe máy Nguyễn Hà",
@@ -42,4 +47,3 @@
     "check_missing_alt": true
   }
 }
-

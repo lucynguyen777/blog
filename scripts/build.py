@@ -123,16 +123,35 @@ def local_map():
 def widgets(): return T.render_widgets()
 def card(p): return T.render_card(p, NAV)
 def shell(title,desc,url,body,extra=None,noindex=False):
+ brand=T.SITE_CFG.get('site',{})
+ logo={'@type':'ImageObject','@id':S['url']+'/#logo','url':S['url']+brand['logo'],'contentUrl':S['url']+brand['logo'],'width':512,'height':512,'caption':'Logo '+S['name']}
+ publisher={'@type':'Organization','@id':S['url']+'/#organization','name':S['name'],'url':S['url']+'/','logo':logo}
+ image={'path':brand['og_image'],'alt':brand['og_image_alt'],'width':brand['og_image_width'],'height':brand['og_image_height']}
+ if url=='/': image={'path':'/assets/hanoi.webp','alt':'Người đi xe máy qua góc phố Bà Triệu ở Hà Nội','width':1400,'height':788}
+ page_source=next((p for p in P if p['url']==url),{})
+ # A supplied article image must depict that article and include accurate metadata.
+ if page_source.get('image'): image=page_source['image']
+ image_url=S['url']+image['path']
+ image_type='image/'+('jpeg' if image['path'].endswith(('.jpg','.jpeg')) else image['path'].rsplit('.',1)[-1])
+ image_meta=f'<meta property="og:image" content="{E(image_url,quote=True)}"><meta property="og:image:secure_url" content="{E(image_url,quote=True)}"><meta property="og:image:type" content="{image_type}"><meta property="og:image:width" content="{image["width"]}"><meta property="og:image:height" content="{image["height"]}"><meta property="og:image:alt" content="{E(image["alt"],quote=True)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title,quote=True)}"><meta name="twitter:description" content="{E(desc,quote=True)}"><meta name="twitter:image" content="{E(image_url,quote=True)}"><meta name="twitter:image:alt" content="{E(image["alt"],quote=True)}">'
+ extra=list(extra or [])
+ for entity in extra:
+  if entity.get('@type')=='LocalBusiness': entity.update({'@id':publisher['@id'],'logo':logo})
+  if entity.get('@type')=='BlogPosting':
+   entity['publisher']={'@id':publisher['@id']}
+   if page_source.get('image'): entity['image']={'@type':'ImageObject','url':image_url,'width':image['width'],'height':image['height'],'caption':image['alt']}
+
  schema={'@context':'https://schema.org','@type':'Blog','name':S['name']+' Journal','url':S['url'],'inLanguage':'vi-VN'}
- schemas=[schema]
+ schema['publisher']={'@id':publisher['@id']}
+ schemas=[publisher,schema]
  if extra:schemas+=extra
  schemas_json=json.dumps(schemas,ensure_ascii=False).replace('</','<\\/')
- return f'''<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google-site-verification" content="{S['verification']}"><title>{E(title)} | Nguyễn Hà Journal</title><meta name="description" content="{E(desc,quote=True)}"><meta name="theme-color" content="#ffa266"><meta name="color-scheme" content="light dark">{'<meta name="robots" content="noindex,follow">' if noindex else ''}<link rel="canonical" href="{S['url']+url}"><meta property="og:type" content="website"><meta property="og:title" content="{E(title,quote=True)}"><meta property="og:description" content="{E(desc,quote=True)}"><meta property="og:url" content="{S['url']+url}"><meta property="og:locale" content="vi_VN"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><script>try{{const t=localStorage.getItem('nguyenha-theme');document.documentElement.dataset.theme=t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')}}catch{{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}}</script><link rel="stylesheet" href="/assets/site.css"><script type="application/ld+json">{schemas_json}</script><script src="/assets/site.js" defer></script></head><body>{header()}<main id="main" class="wrap">{body}</main>{footer()}{widgets()}</body></html>'''
+ return f'''<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google-site-verification" content="{S['verification']}"><title>{E(title)} | Nguyễn Hà Journal</title><meta name="description" content="{E(desc,quote=True)}"><meta name="theme-color" content="#ffa266"><meta name="color-scheme" content="light dark">{'<meta name="robots" content="noindex,follow">' if noindex else ''}<link rel="canonical" href="{S['url']+url}"><meta property="og:type" content="{'article' if any(e.get('@type')=='BlogPosting' for e in extra) else 'website'}"><meta property="og:title" content="{E(title,quote=True)}"><meta property="og:description" content="{E(desc,quote=True)}"><meta property="og:url" content="{S['url']+url}"><meta property="og:locale" content="vi_VN"><meta property="og:site_name" content="{E(S['name'],quote=True)}">{image_meta}<link rel="icon" href="/assets/favicon-48.png" type="image/png" sizes="48x48"><link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><script>try{{const t=localStorage.getItem('nguyenha-theme');document.documentElement.dataset.theme=t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')}}catch{{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}}</script><link rel="stylesheet" href="/assets/site.css"><script type="application/ld+json">{schemas_json}</script><script src="/assets/site.js" defer></script></head><body>{header()}<main id="main" class="wrap">{body}</main>{footer()}{widgets()}</body></html>'''
 def write(url,text):
  path=ROOT/('index.html' if url=='/' else url.strip('/')+'/index.html');path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text)
 FEATURE=[P[0],P[2],P[3]]
 LATEST=[p for p in reversed(P) if p["kind"] in ["article","pillar"] and p["url"]!="/lien-he/"][:3]
-body=f'''<section class="hero"><div><p class="eyebrow">NGUYỄN HÀ JOURNAL</p><h1>Mỗi chuyến đi.<br>Một <em>góc Hà Nội.</em></h1><p>Cẩm nang thuê xe, những góc phố và kinh nghiệm cho hành trình của bạn.</p><div class="hero-actions"><a class="pill gold" href="/thue-xe-may/ha-noi/">Cẩm nang thuê xe</a><a class="text-link" href="/du-lich/ha-noi/">Khám phá Hà Nội</a></div></div><div><div class="hero-visual"><img src="/assets/hanoi.webp" alt="Người đi xe máy trên đường phố Hà Nội" width="1600" height="900" fetchpriority="high"><div class="image-label"><div><small>ĐIỂM BẮT ĐẦU</small><strong>Hà Nội, qua từng con phố.</strong></div><span class="number">01</span></div></div><p class="credit">Ảnh: <a href="https://unsplash.com/@elliot_ra8" target="_blank" rel="noopener noreferrer">Elliot Andrews / Unsplash</a></p></div></section><nav class="topic-strip" aria-label="Chủ đề nhanh"><a class="chip active" href="/thue-xe/">Thuê xe Hà Nội</a><a class="chip" href="/thue-xe-50cc/ha-noi/">Xe 50cc</a><a class="chip" href="/thue-xe-dien/ha-noi/">Xe điện</a><a class="chip" href="/thue-xe-may/ha-noi/theo-thang/">Thuê theo tháng</a><a class="chip" href="/du-lich/ha-noi/">Du lịch Hà Nội</a><a class="chip" href="/bang-gia/">Bảng giá</a></nav><section class="section"><div class="section-head"><div><p class="eyebrow">BẮT ĐẦU TỪ ĐÂY</p><h2>Chọn xe. Chọn hành trình.</h2></div><a class="text-link" href="/thue-xe/">Xem cẩm nang</a></div><div class="grid">{''.join(card(p) for p in FEATURE)}</div></section><section class="section"><div class="feature-band"><div><h2>Một chiếc xe.<br>Nhiều cách khám phá.</h2><p>Giá thuê theo ngày, tuần và tháng. Xem chi phí và điều kiện trước khi lên đường.</p></div><a class="pill gold" href="/bang-gia/">Xem bảng giá</a></div></section><section class="section"><div class="section-head"><div><p class="eyebrow">ĐỌC THEO CHỦ ĐỀ</p><h2>Từ xe đến những điểm đến.</h2></div></div><div class="hub-grid">{''.join('<a class="hub-tile" href="'+h['url']+'"><span class="hub-no">'+str(i+1).zfill(2)+'</span><h3>'+E(h['label'])+'</h3><p>'+E(h['description'])+'</p></a>' for i,h in enumerate(NAV))}</div></section><section class="section"><div class="section-head"><div><p class="eyebrow">BÀI VIẾT MỚI</p><h2>Mới trên Journal.</h2></div></div><div class="grid">{''.join(card(p) for p in LATEST)}</div></section>'''
+body=f'''<section class="hero"><div><p class="eyebrow">NGUYỄN HÀ JOURNAL</p><h1>Mỗi chuyến đi.<br>Một <em>góc Hà Nội.</em></h1><p>Cẩm nang thuê xe, những góc phố và kinh nghiệm cho hành trình của bạn.</p><div class="hero-actions"><a class="pill gold" href="/thue-xe-may/ha-noi/">Cẩm nang thuê xe</a><a class="text-link" href="/du-lich/ha-noi/">Khám phá Hà Nội</a></div></div><div><div class="hero-visual"><img src="/assets/hanoi.webp" alt="Người đi xe máy qua góc phố Bà Triệu ở Hà Nội" width="1400" height="788" decoding="async" fetchpriority="high"><div class="image-label"><div><small>ĐIỂM BẮT ĐẦU</small><strong>Hà Nội, qua từng con phố.</strong></div><span class="number">01</span></div></div><p class="credit">Ảnh: <a href="https://unsplash.com/@elliot_ra8" target="_blank" rel="noopener noreferrer">Elliot Andrews / Unsplash</a></p></div></section><nav class="topic-strip" aria-label="Chủ đề nhanh"><a class="chip active" href="/thue-xe/">Thuê xe Hà Nội</a><a class="chip" href="/thue-xe-50cc/ha-noi/">Xe 50cc</a><a class="chip" href="/thue-xe-dien/ha-noi/">Xe điện</a><a class="chip" href="/thue-xe-may/ha-noi/theo-thang/">Thuê theo tháng</a><a class="chip" href="/du-lich/ha-noi/">Du lịch Hà Nội</a><a class="chip" href="/bang-gia/">Bảng giá</a></nav><section class="section"><div class="section-head"><div><p class="eyebrow">BẮT ĐẦU TỪ ĐÂY</p><h2>Chọn xe. Chọn hành trình.</h2></div><a class="text-link" href="/thue-xe/">Xem cẩm nang</a></div><div class="grid">{''.join(card(p) for p in FEATURE)}</div></section><section class="section"><div class="feature-band"><div><h2>Một chiếc xe.<br>Nhiều cách khám phá.</h2><p>Giá thuê theo ngày, tuần và tháng. Xem chi phí và điều kiện trước khi lên đường.</p></div><a class="pill gold" href="/bang-gia/">Xem bảng giá</a></div></section><section class="section"><div class="section-head"><div><p class="eyebrow">ĐỌC THEO CHỦ ĐỀ</p><h2>Từ xe đến những điểm đến.</h2></div></div><div class="hub-grid">{''.join('<a class="hub-tile" href="'+h['url']+'"><span class="hub-no">'+str(i+1).zfill(2)+'</span><h3>'+E(h['label'])+'</h3><p>'+E(h['description'])+'</p></a>' for i,h in enumerate(NAV))}</div></section><section class="section"><div class="section-head"><div><p class="eyebrow">BÀI VIẾT MỚI</p><h2>Mới trên Journal.</h2></div></div><div class="grid">{''.join(card(p) for p in LATEST)}</div></section>'''
 local={'@context':'https://schema.org','@type':'LocalBusiness','name':S['name'],'url':S['url'],'telephone':S['internationalPhone'],'email':S['email'],'address':{'@type':'PostalAddress','streetAddress':'Ngõ 5 Nguyễn Văn Cừ, Bồ Đề','addressLocality':'Long Biên, Hà Nội','addressCountry':'VN'},'openingHoursSpecification':[{'@type':'OpeningHoursSpecification','dayOfWeek':['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],'opens':'08:00','closes':'17:00'}]}
 write('/',shell('Cẩm nang thuê xe và khám phá Hà Nội', 'Thuê xe máy Nguyễn Hà: bảng giá, kinh nghiệm thuê xe và cẩm nang khám phá Hà Nội. Đọc theo chủ đề xe máy, xe điện và du lịch.','/',body,[local]))
 lookup={p['url']:p for p in P}
@@ -206,6 +225,25 @@ for p in P:
  write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)))
 (ROOT/'404.html').write_text(shell('Không tìm thấy trang','Trang bạn đang tìm không tồn tại.','/404.html','<section class="notice404"><p class="eyebrow">404</p><h1>Ta đổi hướng nhé.</h1><p>Trang này không còn ở địa chỉ bạn vừa mở.</p><a class="pill gold" href="/">Về trang chủ</a></section>',noindex=True))
 
+# Older published routes can survive changes to the article source. Keep their
+# body intact while refreshing the shared shell and brand metadata as well.
+for legacy in ROOT.rglob('index.html'):
+ if 'templates' in legacy.parts or '.git' in legacy.parts: continue
+ old=legacy.read_text()
+ if '/assets/nguyen-ha-logo.svg' in old: continue
+ main_match=re.search(r'<main id="main" class="wrap">(.*?)</main>',old,re.S)
+ canonical_match=re.search(r'<link rel="canonical" href="([^"]+)"',old)
+ title_match=re.search(r'<title>(.*?)</title>',old,re.S)
+ desc_match=re.search(r'<meta name="description" content="([^"]*)"',old)
+ schema_match=re.search(r'<script type="application/ld\+json">(.*?)</script>',old,re.S)
+ if not all([main_match,canonical_match,title_match,desc_match]): continue
+ legacy_url=html.unescape(canonical_match[1]).removeprefix(S['url'])
+ if not legacy_url.startswith('/'): continue
+ old_extra=json.loads(schema_match[1]) if schema_match else []
+ if isinstance(old_extra,dict): old_extra=[old_extra]
+ old_extra=[e for e in old_extra if e.get('@type') not in ['Blog','Organization']]
+ legacy.write_text(shell(html.unescape(title_match[1]).removesuffix(' | Nguyễn Hà Journal'),html.unescape(desc_match[1]),legacy_url,main_match[1],old_extra,noindex='noindex,follow' in old))
+
 # Crawl rendered article HTML locally, rather than relying on titles alone.
 class TextParser(HTMLParser):
  def __init__(self):super().__init__();self.out=[];self.depth=0;self.article=False
@@ -238,5 +276,4 @@ else:
  (ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<sitemap><loc>'+S['url']+'/'+name+'</loc></sitemap>\n' for name in names)+'</sitemapindex>')
 (ROOT/'robots.txt').write_text('User-agent: *\nAllow: /\nSitemap: '+S['url']+'/sitemap.xml\n')
 (ROOT/'CNAME').write_text('thuha.rentbikehanoi.com\n');(ROOT/'.nojekyll').touch()
-(ROOT/'assets/favicon.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="19" fill="#ffa266"/><text x="11" y="45" fill="#171719" font-family="Arial,sans-serif" font-size="44" font-weight="700">n.</text></svg>')
 print(f'Built {len(P)+1} pages, {len(index)} searchable articles, {len(urls)} sitemap URLs')
