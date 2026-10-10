@@ -95,5 +95,15 @@ main{padding-bottom:42px}.footer{padding-bottom:100px}
   .cam-nang-slider .card p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 }
 
+/* Cam nang enhancements */
+.cam-nang-stats{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:32px}
+.cam-nang-stat-pill{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-pill);padding:9px 18px;font-size:14px;font-weight:600}
+.cam-nang-stat-pill .num{background:var(--accent);color:var(--accent-ink);border-radius:var(--radius-pill);padding:3px 10px;font-weight:750;font-size:13px}
+.cam-nang-quick-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px;padding:16px 20px;background:var(--surface);border:1px solid var(--line);border-radius:20px}
+.cam-nang-quick-nav .chip{padding:7px 14px;font-size:13px}
+.badge-count{display:inline-block;padding:3px 10px;border-radius:99px;background:rgba(255,162,102,.18);color:var(--accent-ink);border:1px solid rgba(255,162,102,.45);font-size:12px;font-weight:700;margin-left:8px}
+:root[data-theme=dark] .badge-count{background:rgba(255,162,102,.15);color:var(--accent);border-color:rgba(255,162,102,.35)}
+
+
 /* Scalable brand symbol; adjacent text names the home link. */
 .mark{width:38px;height:38px;border-radius:11px;overflow:hidden;flex-shrink:0;background:#ffa266}.mark img{display:block;width:100%;height:100%;object-fit:contain}.header .mark{width:38px;height:38px}@media(max-width:600px){.header .mark{width:34px;height:34px}}

@@ -167,18 +167,28 @@ for p in P:
    sections=''.join(f'<details class="faq-item" id="muc-{i+1}"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for i,(q,a) in enumerate(FAQ))
    page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
   elif p['url']=='/cam-nang/':
-    recent_10=[q for q in reversed(P) if q['kind'] not in ['hub','page']][:10]
+    all_articles=[q for q in reversed(P) if q['kind'] not in ['hub','page']]
+    total_articles_count=len(all_articles)
+    total_hubs_count=len(NAV)
+    recent_10=all_articles[:10]
     slider_cards_html=''.join(card(q) for q in recent_10)
     slider_block=f'<section class="cam-nang-slider-section"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">MỚI CẬP NHẬT</p><h2 style="font-size:26px">10 bài viết mới nhất</h2><p>Các nội dung kiến thức, hướng dẫn và kinh nghiệm vừa được cập nhật trên blog.</p></div></div><div class="cam-nang-slider-wrap"><div class="cam-nang-slider">{slider_cards_html}</div></div></section>'
+    
+    quick_nav_chips=''.join(f'<a class="chip" href="#{h["slug"]}">{E(h["label"])}</a>' for h in NAV if any(q['hub']==h['slug'] and q['kind'] not in ['hub','page'] for q in P))
+    quick_nav_block=f'<nav class="cam-nang-quick-nav" aria-label="Chuyển nhanh đến chuyên mục"><span style="font-weight:650;font-size:13px;color:var(--muted);display:flex;align-items:center;margin-right:6px">CHUYÊN MỤC:</span>{quick_nav_chips}</nav>'
+    
+    stats_bar=f'<div class="cam-nang-stats"><div class="cam-nang-stat-pill"><span>Tổng số bài viết</span><span class="num">{total_articles_count:,}</span></div><div class="cam-nang-stat-pill"><span>Chuyên mục</span><span class="num">{total_hubs_count}</span></div><div class="cam-nang-stat-pill"><span>Cập nhật</span><span class="num">Tự động</span></div></div>'
+    
     hub_blocks=[]
     for h in NAV:
-     h_articles=[q for q in reversed(P) if q['hub']==h['slug'] and q['kind'] not in ['hub','page']]
+     h_articles=[q for q in all_articles if q['hub']==h['slug']]
      if h_articles:
-      hub_blocks.append(f'<div class="cam-nang-hub" style="margin-bottom:48px"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">{E(h["label"])}</p><h2 style="font-size:26px"><a href="{h["url"]}">{E(h["label"])}</a></h2><p>{E(h["description"])}</p></div><a class="text-link" href="{h["url"]}">Xem tất cả ({len(h_articles)})</a></div><div class="grid">' + ''.join(card(q) for q in h_articles[:3]) + '</div></div>')
-    sections_cam_nang=f'<div class="cam-nang-intro" style="margin-bottom:36px"><p>{E(p["excerpt"])}</p></div>{slider_block}'+''.join(hub_blocks)
+      hub_blocks.append(f'<div id="{h["slug"]}" class="cam-nang-hub" style="margin-bottom:48px;scroll-margin-top:100px"><div class="section-head" style="margin-bottom:18px"><div><p class="eyebrow" style="margin-bottom:6px">{E(h["label"])}</p><h2 style="font-size:26px"><a href="{h["url"]}">{E(h["label"])}</a><span class="badge-count">{len(h_articles)} bài</span></h2><p>{E(h["description"])}</p></div><a class="text-link" href="{h["url"]}">Xem tất cả ({len(h_articles)})</a></div><div class="grid">' + ''.join(card(q) for q in h_articles[:3]) + '</div></div>')
+    
+    sections_cam_nang=f'{stats_bar}{slider_block}{quick_nav_block}' + ''.join(hub_blocks)
     page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><section class="section" style="padding-top:10px">{sections_cam_nang}</section>'
   else:
-   page=f'<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>/</span><span>{E(p["title"])}</span></nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
+   page=f'<nav class="breadcrumb" aria-label="Breadcrumb">{crumbs}</nav><header class="page-heading"><h1>{E(p["title"])}</h1><p>{E(p["excerpt"])}</p></header><article class="article-body information-page">{sections}</article>'
  elif p['kind']=='hub':
    items=[q for q in reversed(P) if q['hub']==p['hub'] and q['kind'] not in ['hub','page']]
    page_size=25
