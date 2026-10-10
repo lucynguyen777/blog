@@ -220,8 +220,10 @@ searchable=[p for p in P if p['kind']!='hub']
 searchable=searchable[-int(FACTORY_CFG.get('search_index_limit',2500)):]
 for p in searchable:
  parser=TextParser();parser.feed((ROOT/p['url'].strip('/')/'index.html').read_text())
- index.append({'url':p['url'],'title':p['title'],'hub':p['hub'],'excerpt':p['excerpt'],'keywords':p['keywords'],'text':' '.join(parser.out),'sections':[{'heading':t,'text':re.sub('<[^>]+>',' ',b),'url':p['url']+'#muc-'+str(i+1)} for i,(t,b) in enumerate(p['sections'])]})
-(ROOT/'assets/search-index.json').write_text(json.dumps({'version':'2026-10-06','site':S,'documents':index},ensure_ascii=False,indent=2))
+ full_text=' '.join(parser.out)
+ text_summary=full_text[:600] if len(full_text)>600 else full_text
+ index.append({'url':p['url'],'title':p['title'],'hub':p['hub'],'excerpt':p['excerpt'],'keywords':p['keywords'],'text':(p['excerpt']+' '+text_summary).strip(),'sections':[{'heading':t,'text':re.sub('<[^>]+>',' ',b)[:200],'url':p['url']+'#muc-'+str(i+1)} for i,(t,b) in enumerate(p['sections'])]})
+(ROOT/'assets/search-index.json').write_text(json.dumps({'version':'2026-10-06','site':S,'documents':index},ensure_ascii=False,separators=(',',':')))
 (ROOT/'assets/navigation.json').write_text(json.dumps({'primary':[dict(label=t,url=u) for t,u in TOP_LINKS],'hubs':NAV,'support':[dict(label=t,url=u) for t,u in BOTTOM_LINKS]},ensure_ascii=False,indent=2))
 (ROOT/'content/editorial-matrix.json').write_text(json.dumps([{'title':p['title'],'keyword':p['keywords'],'hub':p['hub'],'pillar':p['parent'],'url':p['url'],'priority':'P0' if p['hub']=='thue-xe' else 'P1','status':'published',**({'word_count':p['wordCount']} if 'wordCount' in p else {})} for p in P if p['kind'] not in ['hub','page']],ensure_ascii=False,indent=2))
 urls=['/']+[p['url'] for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
