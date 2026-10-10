@@ -1016,6 +1016,11 @@ def run(limit=None,dry_run=False):
     if (ROOT/'STOP_FACTORY').exists():
         print('Factory paused by STOP_FACTORY. Skipping run.')
         return 0
+    if not dry_run and not CFG.get('enabled', True):
+        # Manual workflow_dispatch must honour the config switch too, not only daemon().
+        # --dry-run writes nothing, so it stays available as a required check.
+        print('Factory disabled: "enabled" is false in config/content-factory.json. Skipping run (no files written). Set it to true to resume; --dry-run still works.')
+        return 0
     if not dry_run and not is_operating_hours():
         print(f'[{datetime.now().strftime("%H:%M:%S")}] Ngoài khung giờ hoạt động (nghỉ đêm từ 01:00 đến 07:59). Tạm dừng chu kỳ cho đến 08:00 sáng.')
         return 0
