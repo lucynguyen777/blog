@@ -184,7 +184,8 @@ def main():
         w.writeheader()
         w.writerows(sorted(rows, key=lambda r: (r['decision'], r['family'], r['url'])))
     orph = [] if '--no-orphans' in sys.argv else orphans()
-    (OUT / 'factory-orphans.txt').write_text(''.join(u + '\n' for u in orph))
+    if '--no-orphans' not in sys.argv:
+        (OUT / 'factory-orphans.txt').write_text(''.join(u + '\n' for u in orph))
     summary(rows, orph, near)
 
 

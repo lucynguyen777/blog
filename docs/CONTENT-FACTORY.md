@@ -53,4 +53,6 @@ python3 scripts/content_factory.py reindex
 
 `noindex_factory_articles` (mặc định `false`): khi đặt `true`, `scripts/build.py` gắn `<meta name="robots" content="noindex,follow">` cho mọi bài factory trong `content/articles/` (không áp dụng cho `content/posts.json`) và loại chúng khỏi sitemap; validator kiểm tra theo đúng cờ này.
 
+`config/factory-noindex.json` (danh sách `urls`): chỉ những bài factory có trong danh sách mới bị gắn `noindex,follow` và loại khỏi sitemap; URL vẫn giữ nguyên. Danh sách được tạo từ `python3 scripts/audit_factory.py` (quyết định GOP và BO) và phải được chủ site duyệt. Xoá một URL khỏi danh sách để index lại bài đó.
+
 `target_articles` đang để `null`, nên xưởng chỉ dừng bằng thao tác thủ công. Có thể đặt một số nguyên nếu muốn thêm giới hạn cứng. Trước các mốc 20.000, 30.000 và 50.000 cần xem báo cáo trùng lặp và chất lượng. GitHub Pages và trình duyệt không tải một JSON tìm kiếm chứa toàn bộ 50.000 bài; chỉ mục giao diện được giới hạn, còn cache JSONL giữ toàn bộ corpus.

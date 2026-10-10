@@ -9,6 +9,12 @@ for p in sorted((ROOT/'content/articles').glob('*.json')):
  a=json.loads(p.read_text());posts.append(a);factory_urls.add(a['url'])
 cfg=json.loads((ROOT/'config/content-factory.json').read_text())
 noindex_factory=bool(cfg.get('noindex_factory_articles',False))
+nl_path=ROOT/'config/factory-noindex.json'
+noindex_list=json.loads(nl_path.read_text()).get('urls',[]) if nl_path.exists() else []
+if len(noindex_list)!=len(set(noindex_list)):errors.append('duplicate URL in factory-noindex.json')
+for u in set(noindex_list)-factory_urls:errors.append('factory-noindex.json lists a non-factory URL '+u)
+noindex_set=set(noindex_list)
+def factory_noindex(u): return u in factory_urls and (noindex_factory or u in noindex_set)
 NOINDEX_META='<meta name="robots" content="noindex,follow">'
 urls=[p['url'] for p in posts]
 if len(urls)!=len(set(urls)):errors.append('duplicate article URL')
@@ -19,7 +25,7 @@ for p in posts:
   html_txt=out.read_text()
   if html_txt.count('<h1')!=1:errors.append('H1 count '+p['url'])
   if f'<link rel="canonical" href="{site["url"]}{p["url"]}">' not in html_txt:errors.append('invalid canonical '+p['url'])
-  if p['url'] in factory_urls and (NOINDEX_META in html_txt)!=noindex_factory:errors.append(f'robots meta does not match noindex_factory_articles={noindex_factory}: '+p['url'])
+  if p['url'] in factory_urls and (NOINDEX_META in html_txt)!=factory_noindex(p['url']):errors.append('robots meta does not match noindex settings: '+p['url'])
   title=p.get('title','')
   if len(title)<10 or len(title)>120:errors.append(f'abnormal title length ({len(title)}): '+p['url'])
   if p.get('kind') not in ('hub','page') and 'href="/tac-gia/nguyen-ha/" rel="author"' not in html_txt:errors.append('byline without author link '+p['url'])
@@ -47,7 +53,7 @@ except ET.ParseError as exc:errors.append(f'sitemap parse error: {exc}')
 if len(sitemap_urls)!=len(set(sitemap_urls)):errors.append('duplicate sitemap URL')
 in_sitemap=set(sitemap_urls)
 for p in posts:
- excluded=noindex_factory and p['url'] in factory_urls
+ excluded=factory_noindex(p['url'])
  if excluded and p['url'] in in_sitemap:errors.append('noindex factory article in sitemap '+p['url'])
  if not excluded and p['url'] not in in_sitemap:errors.append('not in sitemap '+p['url'])
 for u in in_sitemap:
