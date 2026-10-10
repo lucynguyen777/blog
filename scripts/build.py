@@ -152,7 +152,7 @@ def write(url,text):
 FEATURE=[P[0],P[2],P[3]]
 LATEST=[p for p in reversed(P) if p["kind"] in ["article","pillar"] and p["url"]!="/lien-he/"][:3]
 body=f'''<section class="hero"><div><p class="eyebrow">NGUYỄN HÀ JOURNAL</p><h1>Mỗi chuyến đi.<br>Một <em>góc Hà Nội.</em></h1><p>Cẩm nang thuê xe, những góc phố và kinh nghiệm cho hành trình của bạn.</p><div class="hero-actions"><a class="pill gold" href="/thue-xe-may/ha-noi/">Cẩm nang thuê xe</a><a class="text-link" href="/du-lich/ha-noi/">Khám phá Hà Nội</a></div></div><div><div class="hero-visual"><img src="/assets/hanoi.webp" alt="Người đi xe máy qua góc phố Bà Triệu ở Hà Nội" width="1400" height="788" decoding="async" fetchpriority="high"><div class="image-label"><div><small>ĐIỂM BẮT ĐẦU</small><strong>Hà Nội, qua từng con phố.</strong></div><span class="number">01</span></div></div><p class="credit">Ảnh: <a href="https://unsplash.com/@elliot_ra8" target="_blank" rel="noopener noreferrer">Elliot Andrews / Unsplash</a></p></div></section><nav class="topic-strip" aria-label="Chủ đề nhanh"><a class="chip active" href="/thue-xe/">Thuê xe Hà Nội</a><a class="chip" href="/thue-xe-50cc/ha-noi/">Xe 50cc</a><a class="chip" href="/thue-xe-dien/ha-noi/">Xe điện</a><a class="chip" href="/thue-xe-may/ha-noi/theo-thang/">Thuê theo tháng</a><a class="chip" href="/du-lich/ha-noi/">Du lịch Hà Nội</a><a class="chip" href="/bang-gia/">Bảng giá</a></nav><section class="section"><div class="section-head"><div><p class="eyebrow">BẮT ĐẦU TỪ ĐÂY</p><h2>Chọn xe. Chọn hành trình.</h2></div><a class="text-link" href="/thue-xe/">Xem cẩm nang</a></div><div class="grid">{''.join(card(p) for p in FEATURE)}</div></section><section class="section"><div class="feature-band"><div><h2>Một chiếc xe.<br>Nhiều cách khám phá.</h2><p>Giá thuê theo ngày, tuần và tháng. Xem chi phí và điều kiện trước khi lên đường.</p></div><a class="pill gold" href="/bang-gia/">Xem bảng giá</a></div></section><section class="section"><div class="section-head"><div><p class="eyebrow">ĐỌC THEO CHỦ ĐỀ</p><h2>Từ xe đến những điểm đến.</h2></div></div><div class="hub-grid">{''.join('<a class="hub-tile" href="'+h['url']+'"><span class="hub-no">'+str(i+1).zfill(2)+'</span><h3>'+E(h['label'])+'</h3><p>'+E(h['description'])+'</p></a>' for i,h in enumerate(NAV))}</div></section><section class="section"><div class="section-head"><div><p class="eyebrow">BÀI VIẾT MỚI</p><h2>Mới trên Journal.</h2></div></div><div class="grid">{''.join(card(p) for p in LATEST)}</div></section>'''
-local={'@context':'https://schema.org','@type':'LocalBusiness','name':S['name'],'url':S['url'],'telephone':S['internationalPhone'],'email':S['email'],'address':{'@type':'PostalAddress','streetAddress':'Ngõ 5 Nguyễn Văn Cừ, Bồ Đề','addressLocality':'Long Biên, Hà Nội','addressCountry':'VN'},'openingHoursSpecification':[{'@type':'OpeningHoursSpecification','dayOfWeek':['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],'opens':'08:00','closes':'17:00'}]}
+local={'@context':'https://schema.org','@type':'LocalBusiness','name':S['name'],'url':S['url'],'telephone':S['internationalPhone'],'email':S['email'],'address':{'@type':'PostalAddress','streetAddress':'Ngõ 5 Nguyễn Văn Cừ, Bồ Đề','addressLocality':'Long Biên, Hà Nội','addressCountry':'VN'},'openingHoursSpecification':[{'@type':'OpeningHoursSpecification','dayOfWeek':['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],'opens':'08:00','closes':'17:00'}],'image':S['url']+'/assets/nguyen-ha-journal-social.png','priceRange':'150.000–200.000đ/ngày','areaServed':{'@type':'City','name':'Hà Nội'},'hasMap':'https://www.google.com/maps/search/?api=1&query='+__import__('urllib.parse').parse.quote(S['address'])}
 write('/',shell('Cẩm nang thuê xe và khám phá Hà Nội', 'Thuê xe máy Nguyễn Hà: bảng giá, kinh nghiệm thuê xe và cẩm nang khám phá Hà Nội. Đọc theo chủ đề xe máy, xe điện và du lịch.','/',body,[local]))
 lookup={p['url']:p for p in P}
 for p in P:
@@ -161,6 +161,9 @@ for p in P:
  if par and par['url']!=hub['url']:crumbs+='<span>/</span><a href="'+par['url']+'">'+E(par['title'])+'</a>'
  if p['kind']!='hub':crumbs+='<span>/</span><span>'+E(p['title'])+'</span>'
  sections=''.join(f'<section id="muc-{i+1}"><h2>{E(t)}</h2>{b}</section>' for i,(t,b) in enumerate(p['sections']))
+ if p.get('faq'):
+  n=len(p['sections'])+1
+  sections+=f'<section id="muc-{n}" class="article-faq"><h2>Câu hỏi thường gặp khi thuê xe máy Hà Nội</h2>'+''.join(f'<details class="faq-item"><summary>{E(q)}</summary><p>{E(a)}</p></details>' for q,a in p['faq'])+'</section>'
  related=[q for q in sorted(P,key=lambda q: q["parent"]!=p["url"]) if q['url']!=p['url'] and q['kind'] not in ['hub','page'] and (q['hub']==p['hub'] or (p['hub'] in ['du-lich','kinh-nghiem','xe-may','xe-dien','bao-duong','luat-giao-thong'] and q['url']=='/thue-xe-may/ha-noi/'))][:3]
  if p['kind']=='page':
   if p['url']=='/faq/':
@@ -215,7 +218,7 @@ for p in P:
     sub_extra=[{'@context':'https://schema.org','@type':'BreadcrumbList','itemListElement':sub_bc}]
     write(sub_url,shell(sub_title,p['excerpt'],sub_url,sub_page,sub_extra,noindex=False))
  else:
-  aside='<h3>Trong bài viết</h3>'+''.join(f'<a href="#muc-{i+1}">{E(t)}</a>' for i,(t,b) in enumerate(p['sections']))+f'<p>Thông tin xe còn sẵn và điều kiện thuê cần được cửa hàng xác nhận.</p><a class="pill gold" href="/lien-he/">Liên hệ Nguyễn Hà</a>'
+  aside='<h3>Trong bài viết</h3>'+''.join(f'<a href="#muc-{i+1}">{E(t)}</a>' for i,(t,b) in enumerate(p['sections']))+(f'<a href="#muc-{len(p["sections"])+1}">Câu hỏi thường gặp</a>' if p.get('faq') else '')+f'<p>Thông tin xe còn sẵn và điều kiện thuê cần được cửa hàng xác nhận.</p><a class="pill gold" href="/lien-he/">Liên hệ Nguyễn Hà</a>'
   cta_block=T.render_conditional_cta(p['hub'])
   author_block=T.render_author_box()
   related_block=T.PARTIAL_RELATED_POSTS.format(related_cards_html=''.join(card(q) for q in related)) if related else ''
@@ -231,6 +234,10 @@ for p in P:
   extra.append(local)
   page+=local_map()
  if p['kind']=='page':extra.append({'@context':'https://schema.org','@type':'WebPage','name':p['title'],'url':S['url']+p['url']})
+ if p.get('faq'):extra.append({'@context':'https://schema.org','@type':'FAQPage','mainEntity':[{'@type':'Question','name':q,'acceptedAnswer':{'@type':'Answer','text':a}} for q,a in p['faq']]})
+ if p.get('localBusiness') and p['url']!='/lien-he/':
+  extra.append(local)
+  page+=local_map()
  if p['url']=='/faq/':extra.append({'@context':'https://schema.org','@type':'FAQPage','mainEntity':[{'@type':'Question','name':q,'acceptedAnswer':{'@type':'Answer','text':a}} for q,a in FAQ]})
  write(p['url'],shell(p['title'],p['excerpt'],p['url'],page,extra,noindex=p['kind']=='hub' and not any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)))
 (ROOT/'404.html').write_text(shell('Không tìm thấy trang','Trang bạn đang tìm không tồn tại.','/404.html','<section class="notice404"><p class="eyebrow">404</p><h1>Ta đổi hướng nhé.</h1><p>Trang này không còn ở địa chỉ bạn vừa mở.</p><a class="pill gold" href="/">Về trang chủ</a></section>',noindex=True))
