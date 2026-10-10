@@ -1,14 +1,14 @@
 {
-  "enabled": true,
-  "target_articles": 20000,
+  "enabled": false,
+  "target_articles": 3618,
   "pair_size": 2,
-  "pairs_per_run": 50,
+  "pairs_per_run": 5,
   "minimum_score": 75,
   "minimum_words": 1500,
   "maximum_words": 5000,
   "maximum_similarity": 0.86,
   "search_index_limit": 2500,
-  "schedule": "every 30 minutes",
+  "schedule": "manual only",
   "operating_hours": {
     "pause_start_hour": 1,
     "resume_hour": 8,

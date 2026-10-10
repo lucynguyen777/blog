@@ -1,14 +1,14 @@
 name: Continuous content factory
 
 on:
-  schedule:
-    - cron: '7,37 * * * *'
+  # schedule:
+  #   - cron: '7,37 * * * *'
   workflow_dispatch:
     inputs:
       pairs:
-        description: 'Số cặp, mỗi cặp 2 bài (mặc định 50, tối đa 50)'
+        description: 'Số cặp, mỗi cặp 2 bài (mặc định 5, tối đa 15)'
         required: false
-        default: '50'
+        default: '5'
 
 permissions:
   contents: write
@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           pairs='${{ inputs.pairs }}'
-          if ! [[ "$pairs" =~ ^([1-9]|[1-4][0-9]|50)$ ]]; then pairs=50; fi
+          if ! [[ "$pairs" =~ ^([1-9]|1[0-5])$ ]]; then pairs=5; fi
           echo "limit=$((pairs * 2))" >> "$GITHUB_OUTPUT"
       - name: Stop check, queue, write and QA
         run: python3 scripts/content_factory.py run --limit '${{ steps.batch.outputs.limit }}'
