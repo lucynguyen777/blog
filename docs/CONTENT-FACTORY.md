@@ -14,7 +14,7 @@ Một lượt tối đa 12 bài. GitHub Actions chạy phút 07 và 37 mỗi gi�
 - `data/factory-state.json`: con trỏ duy nhất và số liệu tiến độ.
 - `data/factory-queue.jsonl`: nhật ký append-only cho bài PASS/REJECTED.
 - `data/content-index.jsonl`: cache sinh lại được gồm URL, intent, số từ và hash nội dung. Đây không phải nguồn bài.
-- `content/editorial-matrix.json`, `assets/search-index.json`, `sitemap.xml`: dữ liệu dẫn xuất từ build.
+- `content/editorial-matrix.json`, `assets/search-index.json`, `sitemap.xml` (sitemap index → `sitemap-pages.xml` cho trang chủ/hub/trang tĩnh/`posts.json` và `sitemap-posts.xml` cho bài factory): dữ liệu dẫn xuất từ build. `lastmod` lấy từ ngày commit git cuối cùng của file nguồn (một lượt `git log`); nếu clone nông hoặc không có git thì dùng ngày dự phòng.
 
 Không đẩy sẵn 50.000 dòng queue. Bộ lập kế hoạch dùng mixed-radix để tạo tuần tự hơn 50.000 tổ hợp ổn định từ chủ đề, xe, quận, đối tượng, bối cảnh và search intent. Cách này giữ commit nhỏ và cho phép dừng tức thì.
 

@@ -41,24 +41,58 @@ add('/lien-he/','Liên hệ Thuê xe máy Nguyễn Hà','thue-xe','Địa chỉ,
 posts_file=ROOT/'content/posts.json'
 if not posts_file.exists(): posts_file.write_text(json.dumps(P,ensure_ascii=False,indent=2))
 P=json.loads(posts_file.read_text())
+for p in P: p['_source']='content/posts.json'
 # Factory articles are sharded so tens of thousands of records do not contend
 # on one JSON file.  The legacy posts.json remains supported.
 article_dir=ROOT/'content/articles'
 if article_dir.exists():
  for article_file in sorted(article_dir.glob('*.json')):
   article=json.loads(article_file.read_text())
+  article['_source']='content/articles/'+article_file.name
   if not any(p['url']==article['url'] for p in P): P.append(article)
 CUSTOM=json.loads((ROOT/'content/pages.json').read_text())
 FAQ=json.loads((ROOT/'content/faq.json').read_text())
 for item in CUSTOM:
- item.update(hub='thue-xe',keywords=item['title'],parent='/',kind='page',art='NH',tone='white')
+ item.update(hub='thue-xe',keywords=item['title'],parent='/',kind='page',art='NH',tone='white',_source='content/pages.json')
 P.extend(CUSTOM)
 
-# Map publication timestamps from factory queue
-import zoneinfo
+# Real source dates.  datePublished of a factory article is the first time the
+# QA gate passed it (append-only queue log) or, failing that, the commit that
+# added its shard; lastmod/dateModified is the last commit touching the source
+# file.  All git dates come from ONE `git log` pass.  Shallow clones or missing
+# git fall back to the previous fixed date instead of crashing.
+import zoneinfo,subprocess
 from datetime import datetime
 VN_TZ=zoneinfo.ZoneInfo('Asia/Ho_Chi_Minh')
-QUEUE_TIMESTAMPS={}
+FALLBACK_ISO='2026-10-06T08:00:00+07:00'
+GIT_SOURCES=['content/articles','content/posts.json','content/pages.json','content/faq.json','content/site.json','config/business-facts.json']
+def git_source_dates():
+ """Return ({path: last commit ISO}, {path: first-add commit ISO}) or empty dicts."""
+ try:
+  shallow=subprocess.run(['git','rev-parse','--is-shallow-repository'],cwd=ROOT,capture_output=True,text=True,timeout=30)
+  if shallow.returncode!=0 or shallow.stdout.strip()!='false':
+   print('NOTE: git history unavailable or shallow; using fallback dates for lastmod/dateModified')
+   return {},{}
+  out=subprocess.run(['git','-c','core.quotepath=off','log','--format=%x00%cI','--name-status','--no-renames','--']+GIT_SOURCES,cwd=ROOT,capture_output=True,text=True,check=True,timeout=300).stdout
+ except Exception as exc:
+  print(f'NOTE: git dates unavailable ({exc}); using fallback dates')
+  return {},{}
+ modified={};added={};cur=None
+ for line in out.splitlines():
+  if line.startswith('\x00'):cur=line[1:].strip();continue
+  if not line.strip() or cur is None or '\t' not in line:continue
+  status,path=line.split('\t',1)
+  modified.setdefault(path,cur)  # newest first
+  if status.startswith('A'):added[path]=cur  # keeps overwriting -> oldest add wins
+ return modified,added
+GIT_MODIFIED,GIT_ADDED=git_source_dates()
+def to_vn(ts):
+ try:return datetime.fromisoformat(ts).astimezone(VN_TZ)
+ except Exception:return None
+def src_modified(*paths):
+ dts=[d for d in (to_vn(GIT_MODIFIED[x]) for x in paths if x in GIT_MODIFIED) if d]
+ return max(dts) if dts else None
+QUEUE_PASS={};QUEUE_ANY={}
 queue_file=ROOT/'data/factory-queue.jsonl'
 if queue_file.exists():
  for line in queue_file.read_text(encoding='utf-8').splitlines():
@@ -66,27 +100,28 @@ if queue_file.exists():
   try:
    entry=json.loads(line)
    if entry.get('id') and entry.get('timestamp'):
-    QUEUE_TIMESTAMPS[entry['id']]=entry['timestamp']
+    QUEUE_ANY[entry['id']]=entry['timestamp']
+    if (entry.get('qa') or {}).get('pass') and entry['id'] not in QUEUE_PASS: QUEUE_PASS[entry['id']]=entry['timestamp']
   except Exception: pass
-
+def fmt_display(dt): return dt.strftime('%H:%M %d.%m.%Y')
 for p in P:
- if p['kind'] in ['hub','page']: continue
- art_id=p.get('id')
- ts=QUEUE_TIMESTAMPS.get(art_id)
- if ts:
-  try:
-   dt=datetime.fromisoformat(ts).astimezone(VN_TZ)
-   p['publish_dt']=dt
-   p['publish_time']=dt.strftime('%H:%M')
-   p['publish_date']=dt.strftime('%d.%m.%Y')
-   p['publish_display']=f"{p['publish_time']} {p['publish_date']}"
-   p['publish_iso']=dt.isoformat()
-  except Exception: pass
- if 'publish_display' not in p:
-  p['publish_time']='08:00'
-  p['publish_date']='06.10.2026'
-  p['publish_display']='08:00 06.10.2026'
-  p['publish_iso']='2026-10-06T08:00:00+07:00'
+ src=p.get('_source')
+ mod=src_modified(src) if src else None
+ if p['kind'] in ['hub','page']:
+  if mod: p['modified_dt']=mod
+  continue
+ pub=None
+ if src and src.startswith('content/articles/'):
+  # Only factory shards have a per-article publish date.
+  pub=to_vn(QUEUE_PASS.get(p.get('id'),'')) or to_vn(GIT_ADDED.get(src,'')) or to_vn(QUEUE_ANY.get(p.get('id'),''))
+ if pub is None and mod is None: pub=mod=datetime.fromisoformat(FALLBACK_ISO)
+ # Without a real publish date, the one real date is used for both fields.
+ if pub is None: pub=mod
+ if mod is None or mod<pub: mod=pub
+ p['publish_dt']=pub;p['modified_dt']=mod
+ p['publish_iso']=pub.isoformat();p['modified_iso']=mod.isoformat()
+ p['publish_display']=fmt_display(pub);p['modified_display']=fmt_display(mod)
+ p['publish_time']=pub.strftime('%H:%M');p['publish_date']=pub.strftime('%d.%m.%Y')
 
 TOP_LINKS=[('Trang chủ','/'),('Cẩm nang','/cam-nang/'),('Giới thiệu','/gioi-thieu/')]
 BOTTOM_LINKS=[('FAQ','/faq/'),('Liên hệ','/lien-he/'),('Điều khoản dịch vụ','/dieu-khoan-dich-vu/'),('Chính sách bảo mật','/chinh-sach-bao-mat/')]
@@ -281,16 +316,35 @@ for p in searchable:
 (ROOT/'assets/search-index.json').write_text(json.dumps({'version':'2026-10-06','site':S,'documents':index},ensure_ascii=False,separators=(',',':')))
 (ROOT/'assets/navigation.json').write_text(json.dumps({'primary':[dict(label=t,url=u) for t,u in TOP_LINKS],'hubs':NAV,'support':[dict(label=t,url=u) for t,u in BOTTOM_LINKS]},ensure_ascii=False,indent=2))
 (ROOT/'content/editorial-matrix.json').write_text(json.dumps([{'title':p['title'],'keyword':p['keywords'],'hub':p['hub'],'pillar':p['parent'],'url':p['url'],'priority':'P0' if p['hub']=='thue-xe' else 'P1','status':'published',**({'word_count':p['wordCount']} if 'wordCount' in p else {})} for p in P if p['kind'] not in ['hub','page']],ensure_ascii=False,indent=2))
-urls=['/']+[p['url'] for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
+# Sitemap index: sitemap-pages.xml (home, hubs, static pages, posts.json) and
+# sitemap-posts.xml (factory shards).  lastmod is the source's own date.
+FALLBACK_DT=datetime.fromisoformat(FALLBACK_ISO)
+def is_factory(p): return str(p.get('_source','')).startswith('content/articles/')
+ARTICLES_ALL=[p for p in P if p['kind'] not in ['hub','page']]
+def newest(items,default=None):
+ dts=[q['modified_dt'] for q in items if q.get('modified_dt')]
+ return max(dts) if dts else default
+SITE_NEWEST=newest(ARTICLES_ALL,FALLBACK_DT)
+def lastmod_for(p):
+ if p['kind']=='hub':return newest([q for q in ARTICLES_ALL if q['hub']==p['hub']],SITE_NEWEST)
+ if p['url']=='/cam-nang/':return SITE_NEWEST
+ if p['url']=='/faq/':return src_modified('content/pages.json','content/faq.json') or FALLBACK_DT
+ return p.get('modified_dt') or FALLBACK_DT
+indexed=[p for p in P if p['kind']!='hub' or any(q['hub']==p['hub'] and q['kind'] not in ['hub','page'] for q in P)]
+page_entries=[('/',SITE_NEWEST)]+[(p['url'],lastmod_for(p)) for p in indexed if not is_factory(p)]
+post_entries=[(p['url'],lastmod_for(p)) for p in indexed if is_factory(p)]
+urls=[u for u,_ in page_entries+post_entries]
+SITEMAP_CHUNK=40000  # well under the 50,000-URL protocol limit
+def urlset(entries): return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+E(S['url']+u)+'</loc><lastmod>'+d.isoformat(timespec='seconds')+'</lastmod></url>\n' for u,d in entries)+'</urlset>\n'
 for old in ROOT.glob('sitemap-*.xml'): old.unlink()
-if len(urls)<=40000:
- (ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+S['url']+u+'</loc><lastmod>2026-10-06</lastmod></url>\n' for u in urls)+'</urlset>')
-else:
- names=[]
- for pos in range(0,len(urls),40000):
-  name='sitemap-'+str(pos//40000+1)+'.xml';names.append(name)
-  (ROOT/name).write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<url><loc>'+S['url']+u+'</loc><lastmod>2026-10-06</lastmod></url>\n' for u in urls[pos:pos+40000])+'</urlset>')
- (ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<sitemap><loc>'+S['url']+'/'+name+'</loc></sitemap>\n' for name in names)+'</sitemapindex>')
+children=[]
+for base,entries in [('sitemap-pages',page_entries),('sitemap-posts',post_entries)]:
+ for pos in range(0,len(entries),SITEMAP_CHUNK):
+  name=base+('' if pos==0 else '-'+str(pos//SITEMAP_CHUNK+1))+'.xml'
+  chunk=entries[pos:pos+SITEMAP_CHUNK]
+  (ROOT/name).write_text(urlset(chunk))
+  children.append((name,max(d for _,d in chunk)))
+(ROOT/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+''.join('<sitemap><loc>'+S['url']+'/'+name+'</loc><lastmod>'+d.isoformat(timespec='seconds')+'</lastmod></sitemap>\n' for name,d in children)+'</sitemapindex>\n')
 (ROOT/'robots.txt').write_text('User-agent: *\nAllow: /\nSitemap: '+S['url']+'/sitemap.xml\n')
 (ROOT/'CNAME').write_text('thuha.rentbikehanoi.com\n');(ROOT/'.nojekyll').touch()
 print(f'Built {len(P)+1} pages, {len(index)} searchable articles, {len(urls)} sitemap URLs')
