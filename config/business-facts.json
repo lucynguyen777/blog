@@ -10,5 +10,18 @@
     "xe ga": "150–200 nghìn/ngày, 600 nghìn–1 triệu/tuần, 1,2–2 triệu/tháng",
     "xe điện": "giá ngày tùy mẫu, 600–800 nghìn/tuần, 1,5–1,8 triệu/tháng",
     "xe 50cc": "200 nghìn/ngày, 1 triệu/tuần, 2 triệu/tháng"
+  },
+  "policies": {
+    "late_fee": "20.000đ/giờ; quá 6 giờ tính tròn một ngày thuê",
+    "rental_day": "24 giờ từ lúc nhận xe; thuê theo giờ hoặc nửa ngày vẫn tính giá một ngày",
+    "early_return": "không hoàn lại tiền thuê đã thanh toán",
+    "deposit": "2–5 triệu đồng tùy xe và thời hạn thuê; cọc tiền thì không giữ giấy tờ gốc",
+    "age": "xe 50cc nhận khách từ 18 tuổi; xe khác khách từ 20 tuổi có giấy phép phù hợp",
+    "license_50cc": "xe gắn máy dưới 50cc không yêu cầu bằng A1, người lái đủ 16 tuổi (theo chủ cửa hàng, 10/2026)",
+    "damage": "xử lý theo hợp đồng; lỗi của xe: cửa hàng chịu phần lớn chi phí; khách gây tai nạn, thủng săm, xịt lốp: khách tự chịu",
+    "delivery": "hợp đồng nhiều ngày, tuần, tháng; 50.000đ/lượt trong bán kính 10 km từ trung tâm Hoàn Kiếm, hai chiều 100.000đ; không giao/nhận tại sân bay Nội Bài",
+    "fuel": "trả xe với khoảng 0,5–1 lít xăng; bình trống phí 20.000đ",
+    "helmet": "mũ bảo hiểm cơ bản miễn phí",
+    "payment": "tiền mặt hoặc chuyển khoản ngân hàng Việt Nam"
   }
 }

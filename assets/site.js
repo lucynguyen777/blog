@@ -82,4 +82,8 @@ $('chat-refresh').onclick=async()=>{const b=$('chat-refresh');if(busy||b.disable
  await Promise.all(Array.from({length:3},async()=>{while(queue.length){const url=queue.shift();try{const html=await fetchTimed(url,'text',5000);const d=parseDoc(html,url);if(d){const old=find(url);if(old){d.hub=old.hub;d.keywords=old.keywords}docs=docs.filter(x=>x.url!==url).concat(d);count++}}catch{}}}));
  message(count?`Đã đọc lại ${count} bài viết từ blog. Bạn muốn tìm nội dung nào?`:ok?'Đã cập nhật chỉ mục blog. Chưa đọc được thêm bài trực tiếp.':'Chưa cập nhật được dữ liệu. Bạn có thể thử lại khi kết nối ổn định.');
  }catch{message('Chưa cập nhật được dữ liệu blog. Tôi sẽ tiếp tục dùng nội dung đã đọc.')}finally{b.disabled=false}};
+// GA4 contact events (gtag is loaded in <head> when a measurement id is configured).
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a||typeof window.gtag!=='function')return;const h=a.getAttribute('href');
+ const name=h.startsWith('tel:')?'click_call':/zalo\.me/.test(h)?'click_zalo':/wa\.me|whatsapp/i.test(h)?'click_whatsapp':h.startsWith('mailto:')?'click_email':'';
+ if(name)window.gtag('event',name,{link_url:h,page_path:location.pathname})});
 })();
