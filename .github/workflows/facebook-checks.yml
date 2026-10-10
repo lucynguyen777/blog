@@ -1,0 +1,89 @@
+name: Facebook pipeline checks
+on:
+  push:
+    branches: [main, 'codex/facebook-*']
+    paths: ['scripts/facebook_pipeline.py', 'scripts/latest_articles.py', 'tests/test_facebook*.py', 'config/facebook.json', '.github/workflows/facebook*.yml']
+  pull_request:
+    paths: ['scripts/facebook_pipeline.py', 'scripts/latest_articles.py', 'tests/test_facebook*.py', 'config/facebook.json', '.github/workflows/facebook*.yml']
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m unittest discover -s tests -p 'test_facebook*.py' -v
+      - run: python3 scripts/latest_articles.py
+
+  ai-dry-run:
+    needs: tests
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/facebook-') && contains(github.event.head_commit.message, '[ai-dry-run]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Start local AI without any Meta or AI token
+        run: |
+          docker run -d --name social-ollama -p 127.0.0.1:11434:11434 -e OLLAMA_NO_CLOUD=1 ollama/ollama:0.34.2
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:11434/api/tags > /dev/null; then break; fi
+            sleep 1
+          done
+          docker exec social-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+      - name: Full 10-source AI dry-run using latest published sources
+        run: |
+          test_day=$(TZ=Asia/Ho_Chi_Minh date -d tomorrow +%F)
+          python3 scripts/facebook_pipeline.py prepare --date "$test_day"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: facebook-ai-dry-run-${{ github.run_id }}
+          path: out/facebook/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  state-check:
+    needs: tests
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/facebook-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exercise durable state with runner token, without Meta credentials
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'scripts')
+          from facebook_pipeline import Store
+          store = Store(remote=True)
+          path = 'checks/' + os.environ['GITHUB_RUN_ID'] + '.json'
+          store.read(path)
+          store.write(path, {'phase': 'created', 'live_enabled': False})
+          assert store.read(path)['phase'] == 'created'
+          store.write(path, {'phase': 'CAS-read-write-verified', 'live_enabled': False})
+          assert store.read(path)['phase'] == 'CAS-read-write-verified'
+          print('Durable GitHub state read/write/CAS verified; no Meta requests')
+          PY

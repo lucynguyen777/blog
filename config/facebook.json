@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "live_enabled": false,
+  "page_id": "1397799880080241",
+  "page_name": "Cho thuê xe máy 50cc Long Biên Hà Nội",
+  "graph_version": "v26.0",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "site": "https://thuha.rentbikehanoi.com",
+  "collection": "/cam-nang/",
+  "count": 10,
+  "first_post": "11:00",
+  "interval_minutes": 30,
+  "state_branch": "facebook-state",
+  "ai_model": "qwen3:4b-instruct-2507-q4_K_M",
+  "ai_context": 32768,
+  "authoritative_hours": "09:00–21:00 hằng ngày"
+}
