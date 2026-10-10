@@ -1,8 +1,8 @@
 {
-  "next_sequence": 3274,
-  "published_by_factory": 3100,
-  "rejected": 173,
-  "last_run": "2026-10-10T12:50:17.183470+00:00",
+  "next_sequence": 3375,
+  "published_by_factory": 3200,
+  "rejected": 174,
+  "last_run": "2026-10-10T13:01:29.164444+00:00",
   "status": "ready",
   "notify_milestone": 20000,
   "auto_stop_at_milestone": false
